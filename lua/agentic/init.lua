@@ -1,5 +1,4 @@
 local Config = require("agentic.config")
-local ConfigDefault = require("agentic.config_default")
 
 ---@class agentic.state.Instances
 ---@field chat_widget agentic.ui.ChatWidget
@@ -9,6 +8,21 @@ local ConfigDefault = require("agentic.config_default")
 ---@type table<integer, agentic.state.Instances>
 local instances = {}
 
+---Cleanup all active instances and processes
+---This is called automatically on VimLeavePre and signal handlers
+---Can also be called manually if needed
+local function cleanup_all()
+    for _tab_id, instance in pairs(instances) do
+        if instance.agent_client then
+            pcall(function()
+                instance.agent_client:stop()
+            end)
+        end
+    end
+    instances = {}
+end
+
+---@class agentic.Agentic
 local M = {}
 
 local function deep_merge_into(target, ...)
@@ -29,6 +43,46 @@ function M.setup(opts)
     deep_merge_into(Config, opts or {})
     ---FIXIT: remove the debug override before release
     Config.debug = true
+
+    local cleanup_group =
+        vim.api.nvim_create_augroup("AgenticCleanup", { clear = true })
+
+    vim.api.nvim_create_autocmd("VimLeavePre", {
+        group = cleanup_group,
+        callback = function()
+            cleanup_all()
+        end,
+        desc = "Cleanup Agentic processes on exit",
+    })
+
+    -- Cleanup specific tab instance when tab is closed
+    vim.api.nvim_create_autocmd("TabClosed", {
+        group = cleanup_group,
+        callback = function(ev)
+            local tab_id = tonumber(ev.match)
+            if tab_id and instances[tab_id] then
+                if instances[tab_id].agent_client then
+                    pcall(function()
+                        instances[tab_id].agent_client:stop()
+                    end)
+                end
+                instances[tab_id] = nil
+            end
+        end,
+        desc = "Cleanup Agentic processes on tab close",
+    })
+
+    -- Setup signal handlers for graceful shutdown
+    local sigterm_handler = vim.uv.new_signal()
+    vim.uv.signal_start(sigterm_handler, "sigterm", function(signame)
+        cleanup_all()
+    end)
+
+    -- SIGINT handler (Ctrl-C) - note: may not trigger in raw terminal mode
+    local sigint_handler = vim.uv.new_signal()
+    vim.uv.signal_start(sigint_handler, "sigint", function(signame)
+        cleanup_all()
+    end)
 end
 
 local function get_instance()
