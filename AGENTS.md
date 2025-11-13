@@ -61,12 +61,18 @@ The ACP documentation can be found at:
 - `MunifTanjim/nui.nvim` - Text rendering, buffer splitting, and UI components
   - For lines and text rendering read:
     https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/text/README.md
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/text/init.lua
     https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/line/README.md
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/line/init.lua
   - For menus read:
     https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/menu/README.md
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/menu/init.lua
   - For popups read:
     https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/popup/README.md
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/popup/init.lua
   - For splits read:
     https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/split/README.md
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/split/init.lua
   - For layout read:
     https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/layout/README.md
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/layout/init.lua
