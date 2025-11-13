@@ -89,7 +89,8 @@ function ChatWidget:_submit_input()
 
     local prompt = table.concat(lines, "\n"):match("^%s*(.-)%s*$")
 
-    if prompt == "" then
+    -- Check if prompt is empty or contains only whitespace
+    if not prompt or prompt == "" or not prompt:match("%S") then
         return
     end
 
@@ -183,12 +184,15 @@ function ChatWidget._make_split(props)
         buf_options = {
             swapfile = false,
             buftype = "nofile",
+            bufhidden = "hide",
+            buflisted = false,
         },
         win_options = {
             wrap = true,
             signcolumn = "no",
             number = false,
             relativenumber = false,
+            winfixbuf = true,
         },
     }, props))
 end

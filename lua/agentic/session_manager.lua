@@ -79,6 +79,23 @@ function SessionManager:new(tab_page_id)
 
         instance.selected_files = {}
 
+        if instance.message_writer then
+            local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+            local message_with_header = string.format(
+                "## User - %s\n%s\n\n## Agent - %s",
+                timestamp,
+                input_text,
+                instance.current_provider
+            )
+            instance.message_writer:write_message({
+                sessionUpdate = "user_message_chunk",
+                content = {
+                    type = "text",
+                    text = message_with_header,
+                },
+            })
+        end
+
         instance.agent:send_prompt(instance.session_id, {
             {
                 type = "text",
@@ -104,6 +121,28 @@ function SessionManager:new(tab_page_id)
         end
 
         instance.session_id = response.sessionId
+
+        -- Add initial welcome message after session is created
+        -- Defer to avoid fast event context issues
+        vim.schedule(function()
+            local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+            local provider_name = instance.current_provider or "unknown"
+            local session_id = instance.session_id or "unknown"
+            local welcome_message = string.format(
+                "# Agentic - %s - %s\n- %s\n- ACP\n-----",
+                provider_name,
+                session_id,
+                timestamp
+            )
+
+            instance.message_writer:write_message({
+                sessionUpdate = "user_message_chunk",
+                content = {
+                    type = "text",
+                    text = welcome_message,
+                },
+            })
+        end)
     end)
 
     return instance
@@ -113,7 +152,7 @@ function SessionManager:_add_initial_file_to_selection()
     local buf_path = vim.api.nvim_buf_get_name(self.widget.main_buffer.bufnr)
 
     local stat = vim.uv.fs_stat(buf_path)
-    if stat == nil or stat.type == "file" then
+    if stat and stat.type == "file" then
         table.insert(self.selected_files, buf_path)
     end
 end
@@ -131,6 +170,7 @@ function P.on_session_update(session, update)
     elseif update.sessionUpdate == "agent_thought_chunk" then
         session.message_writer:write_message(update)
     elseif update.sessionUpdate == "tool_call" then
+        session.message_writer:write_tool_call_block(update)
     elseif update.sessionUpdate == "tool_call_update" then
     elseif update.sessionUpdate == "available_commands_update" then
     else

@@ -55,3 +55,18 @@ The ACP documentation can be found at:
 
 - Neovim v0.11.0+ (make sure settings, functions, and APIs, specially around
   `vim.*` are for this version or newer)
+
+### Dependencies
+
+- `MunifTanjim/nui.nvim` - Text rendering, buffer splitting, and UI components
+  - For lines and text rendering read:
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/text/README.md
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/line/README.md
+  - For menus read:
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/menu/README.md
+  - For popups read:
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/popup/README.md
+  - For splits read:
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/split/README.md
+  - For layout read:
+    https://raw.githubusercontent.com/MunifTanjim/nui.nvim/refs/heads/main/lua/nui/layout/README.md

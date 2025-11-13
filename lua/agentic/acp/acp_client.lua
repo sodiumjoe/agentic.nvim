@@ -143,12 +143,9 @@ function ACPClient:_send_request(method, params, callback)
         params = params or {},
     }
 
-    -- store the callback first to avoid freezing and race conditions
     if callback then
         self.callbacks[id] = callback
     end
-
-    self.callbacks[id] = callback
 
     local data = vim.json.encode(message)
 
@@ -386,6 +383,7 @@ end
 
 function ACPClient:stop()
     self.transport:stop()
+    -- FIXIT: check if it's possible to remove pending responses and use callbacks only
     self.pending_responses = {}
 end
 
@@ -674,20 +672,18 @@ return ACPClient
 ---@field toolCallId string
 ---@field rawInput? agentic.acp.RawInput
 ---
----@class agentic.acp.BaseToolCallContent
----@field type "content" | "diff"
 
----@class agentic.acp.ToolCallRegularContent : agentic.acp.BaseToolCallContent
+---@class agentic.acp.ToolCallRegularContent
 ---@field type "content"
 ---@field content agentic.acp.Content
 
----@class agentic.acp.ToolCallDiffContent : agentic.acp.BaseToolCallContent
+---@class agentic.acp.ToolCallDiffContent
 ---@field type "diff"
 ---@field path string
 ---@field oldText string
 ---@field newText string
 
----@alias ACPToolCallContent agentic.acp.ToolCallRegularContent | agentic.acp.ToolCallDiffContent
+---@alias agentic.acp.ACPToolCallContent agentic.acp.ToolCallRegularContent | agentic.acp.ToolCallDiffContent
 
 ---@class agentic.acp.ToolCallLocation
 ---@field path string
@@ -718,16 +714,22 @@ return ACPClient
 ---@field sessionUpdate "agent_thought_chunk"
 ---@field content agentic.acp.Content
 
----@class agentic.acp.ToolCallUpdate
----@field sessionUpdate? "tool_call" | "tool_call_update"
+---@class agentic.acp.ToolCallMessage
+---@field sessionUpdate "tool_call"
 ---@field toolCallId string
----@field title? string
+---@field title? string most likely the command to be executed
 ---@field kind? agentic.acp.ToolKind
 ---@field status? agentic.acp.ToolCallStatus
----@field content? ACPToolCallContent[]
+---@field content? agentic.acp.ACPToolCallContent[]
 ---@field locations? agentic.acp.ToolCallLocation[]
 ---@field rawInput? agentic.acp.RawInput
 ---@field rawOutput? table
+
+---The result status of a tool call, like "completed" or "failed" or "rejected"
+---@class agentic.acp.ToolCallUpdate
+---@field sessionUpdate "tool_call_update"
+---@field status agentic.acp.ToolCallStatus
+---@field content agentic.acp.ACPToolCallContent[]
 
 ---@class agentic.acp.PlanUpdate
 ---@field sessionUpdate "plan"
@@ -741,7 +743,7 @@ return ACPClient
 --- | agentic.acp.UserMessageChunk
 --- | agentic.acp.AgentMessageChunk
 --- | agentic.acp.AgentThoughtChunk
---- | agentic.acp.ToolCallUpdate
+--- | agentic.acp.ToolCallMessage
 --- | agentic.acp.PlanUpdate
 --- | agentic.acp.AvailableCommandsUpdate
 
