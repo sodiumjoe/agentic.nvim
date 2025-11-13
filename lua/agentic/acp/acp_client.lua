@@ -131,9 +131,7 @@ end
 
 ---@param method string
 ---@param params? table
----@param callback? fun(result: table|nil, err: agentic.acp.ACPError|nil)
----@return table|nil result
----@return agentic.acp.ACPError|nil err
+---@param callback fun(result: table|nil, err: agentic.acp.ACPError|nil)
 function ACPClient:_send_request(method, params, callback)
     local id = self:_next_id()
     local message = {
@@ -143,44 +141,13 @@ function ACPClient:_send_request(method, params, callback)
         params = params or {},
     }
 
-    if callback then
-        self.callbacks[id] = callback
-    end
+    self.callbacks[id] = callback
 
     local data = vim.json.encode(message)
 
     logger.debug_to_file("request: ", message)
 
-    if not self.transport:send(data) then
-        return nil
-    end
-
-    if not callback then
-        logger.debug("Waiting for synchronous request:", method)
-        return self:_wait_response_sync(id)
-    end
-end
-
----@deprecated remove the sync wait to avoid UI freezing, all requests should have a callback, even if it's a noop
-function ACPClient:_wait_response_sync(id)
-    local start_time = vim.uv.now()
-    local timeout = self.provider_config.timeout or 100000
-
-    while vim.uv.now() - start_time < timeout do
-        vim.wait(100)
-
-        if self.pending_responses[id] then
-            local result, err = unpack(self.pending_responses[id])
-            self.pending_responses[id] = nil
-            return result, err
-        end
-    end
-
-    return nil,
-        self:_create_error(
-            self.ERROR_CODES.TIMEOUT_ERROR,
-            "Timeout waiting for a response from the agent"
-        )
+    self.transport:send(data)
 end
 
 ---Send JSON-RPC notification
@@ -242,11 +209,17 @@ function ACPClient:_handle_message(message)
             self.callbacks[message.id] = nil
             callback(message.result, message.error)
         else
+            vim.notify(
+                "No callback found for response id: "
+                    .. tostring(message.id)
+                    .. "\n\n"
+                    .. vim.inspect(message),
+                vim.log.levels.WARN
+            )
             self.pending_responses[message.id] =
                 { message.result, message.error }
         end
     else
-        -- Unknown message type
         vim.notify(
             "Unknown message type: " .. vim.inspect(message),
             vim.log.levels.WARN
@@ -398,49 +371,54 @@ function ACPClient:_initialize()
 
     self:_set_state("initializing")
 
-    local result = self:_send_request("initialize", {
+    self:_send_request("initialize", {
         protocolVersion = self.protocol_version,
         clientCapabilities = self.capabilities,
-    })
+    }, function(result, err)
+        if not result or err then
+            self:_set_state("error")
+            vim.notify(
+                "Failed to initialize\n\n" .. vim.inspect(err),
+                vim.log.levels.ERROR
+            )
+            return
+        end
 
-    if not result then
-        self:_set_state("error")
-        vim.notify("Failed to initialize", vim.log.levels.ERROR)
-        return
-    end
+        self.protocol_version = result.protocolVersion
+        self.agent_capabilities = result.agentCapabilities
+        self.auth_methods = result.authMethods or {}
 
-    self.protocol_version = result.protocolVersion
-    self.agent_capabilities = result.agentCapabilities
-    self.auth_methods = result.authMethods or {}
+        -- Check if we need to authenticate
+        local auth_method = self.provider_config.auth_method
 
-    -- Check if we need to authenticate
-    local auth_method = self.provider_config.auth_method
-
-    if auth_method then
-        logger.debug("Authenticating with method ", auth_method)
-        self:_authenticate(auth_method)
-        self:_set_state("ready")
-    else
-        logger.debug("No authentication method found or specified")
-        self:_set_state("ready")
-    end
+        -- FIXIT: auth_method should be validated against available methods from the agent message
+        if auth_method then
+            logger.debug("Authenticating with method ", auth_method)
+            self:_authenticate(auth_method)
+        else
+            logger.debug("No authentication method found or specified")
+            self:_set_state("ready")
+        end
+    end)
 end
 
 ---@param method_id string
 function ACPClient:_authenticate(method_id)
-    return self:_send_request("authenticate", {
+    self:_send_request("authenticate", {
         methodId = method_id,
-    })
+    }, function()
+        self:_set_state("ready")
+    end)
 end
 
----@param callback? fun(result: table|nil, err: agentic.acp.ACPError|nil)
----@return string|nil session_id
----@return agentic.acp.ACPError|nil err
+---@param callback fun(result: table|nil, err: agentic.acp.ACPError|nil)
 function ACPClient:create_session(callback)
     local cwd = vim.fn.getcwd()
 
-    -- handler to threat both sync and async cases in the same way
-    local function handle_response_sync(result, err)
+    self:_send_request("session/new", {
+        cwd = cwd,
+        mcpServers = {},
+    }, function(result, err)
         callback = callback or function() end
         if err then
             vim.notify(
@@ -448,7 +426,7 @@ function ACPClient:create_session(callback)
                 vim.log.levels.ERROR
             )
             callback(nil, err)
-            return nil, err
+            return
         end
 
         if not result then
@@ -458,30 +436,16 @@ function ACPClient:create_session(callback)
             )
 
             callback(nil, err)
-            return nil, err
+            return
         end
 
         callback(result, err)
-        return result.sessionId, nil
-    end
-
-    local result, err = self:_send_request("session/new", {
-        cwd = cwd,
-        mcpServers = {},
-    }, callback and handle_response_sync or nil)
-
-    -- when there's a callback, it'll resolve asynchronously
-    if callback then
-        return
-    end
-
-    return handle_response_sync(result, err)
+    end)
 end
 
 ---@param session_id string
 ---@param cwd string
 ---@param mcp_servers table[]?
----@return table|nil result
 function ACPClient:load_session(session_id, cwd, mcp_servers)
     --FIXIT: check if it's possible to ignore this check and just try to send load message
     -- handle the response error properly also
@@ -495,16 +459,18 @@ function ACPClient:load_session(session_id, cwd, mcp_servers)
         return
     end
 
-    return self:_send_request("session/load", {
+    self:_send_request("session/load", {
         sessionId = session_id,
         cwd = cwd,
         mcpServers = mcp_servers or {},
-    })
+    }, function()
+        -- no-op
+    end)
 end
 
 ---@param session_id string
 ---@param prompt agentic.acp.Content[]
----@param callback? fun(result: table|nil, err: agentic.acp.ACPError|nil)
+---@param callback fun(result: table|nil, err: agentic.acp.ACPError|nil)
 function ACPClient:send_prompt(session_id, prompt, callback)
     local params = {
         sessionId = session_id,

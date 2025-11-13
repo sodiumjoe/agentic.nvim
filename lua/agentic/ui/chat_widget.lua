@@ -67,6 +67,7 @@ end
 
 function ChatWidget:hide()
     if self:is_open() then
+        vim.cmd("stopinsert")
         self.panels.layout:hide()
     end
 end
@@ -97,6 +98,7 @@ function ChatWidget:_submit_input()
     vim.api.nvim_buf_set_lines(self.panels.input.bufnr, 0, -1, false, {})
     vim.api.nvim_win_set_cursor(self.panels.input.winid, { 1, 0 })
 
+    vim.cmd("stopinsert")
     self.on_submit_input(prompt)
 end
 

@@ -107,6 +107,18 @@ function SessionManager:new(tab_page_id)
                 vim.notify("Error submitting prompt: " .. vim.inspect(err))
                 return
             end
+
+            vim.schedule(function()
+                local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+                local finish_message = string.format(" 🏁 %s\n---", timestamp)
+                instance.message_writer:write_message({
+                    sessionUpdate = "agent_message_chunk",
+                    content = {
+                        type = "text",
+                        text = finish_message,
+                    },
+                })
+            end)
         end)
     end)
 
