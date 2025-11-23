@@ -15,6 +15,10 @@ You don't have to leave Neovim, so more time in the
 [Flow](<https://en.wikipedia.org/wiki/Flow_(psychology)>) state, and less
 context switching.
 
+
+https://github.com/user-attachments/assets/4b33bb18-95f7-4fea-bc12-9a9208823911
+
+
 ## ✨ Features
 
 - **⚡ Performance First** - Optimized for minimal overhead and fast response
