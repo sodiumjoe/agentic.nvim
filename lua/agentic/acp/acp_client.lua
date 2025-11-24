@@ -8,7 +8,7 @@ DO NOT REMOVE them. Only update them if the underlying types change.
 --]]
 
 ---@class agentic.acp.ACPClient
----@field provider_config agentic.acp.ClientConfig
+---@field provider_config agentic.acp.ACPProviderConfig
 ---@field id_counter number
 ---@field state agentic.acp.ClientConnectionState
 ---@field protocol_version number
@@ -30,7 +30,7 @@ ACPClient.ERROR_CODES = {
     INVALID_REQUEST = -32006,
 }
 
----@param config agentic.acp.ClientConfig
+---@param config agentic.acp.ACPProviderConfig
 ---@return agentic.acp.ACPClient
 function ACPClient:new(config)
     ---@type agentic.acp.ACPClient
@@ -839,11 +839,12 @@ return ACPClient
 ---@field on_write_file agentic.acp.ClientHandlers.on_write_file
 ---@field on_error agentic.acp.ClientHandlers.on_error
 
----@class agentic.acp.ClientConfig
+---@class agentic.acp.ACPProviderConfig
+---@field name string Provider name
 ---@field transport_type? agentic.acp.TransportType
 ---@field command? string Command to spawn agent (for stdio)
 ---@field args? string[] Arguments for agent command
----@field env? table<string, string> Environment variables
+---@field env? table<string, string|nil> Environment variables
 ---@field timeout? number Request timeout in milliseconds
 ---@field reconnect? boolean Enable auto-reconnect
 ---@field max_reconnect_attempts? number Maximum reconnection attempts
