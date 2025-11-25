@@ -129,11 +129,13 @@ end
 --- @param update agentic.acp.ToolCallMessage
 function MessageWriter:write_tool_call_block(update)
     if
-        (not update.content or #update.content == 0)
+        (
+            not update.content
+            ---@diagnostic disable-next-line: invisible -- that's the only way to identify Claude empty tool calls for now
+            or (vim.tbl_isempty(update.content) or update._meta ~= nil)
+        )
         and (not update.rawInput or vim.tbl_isempty(update.rawInput))
     then
-        -- Skipping tool call with empty content and rawInput,
-        -- The agent will send another one
         return
     end
 
@@ -149,11 +151,53 @@ function MessageWriter:write_tool_call_block(update)
             argument = update.rawInput.query
                 or update.rawInput.url
                 or "unknown fetch"
+        elseif kind == "read" then
+            local path = update.rawInput.file_path
+                or (
+                    update.locations
+                    and update.locations[1]
+                    and update.locations[1].path
+                )
+
+            if path then
+                argument = FileSystem.to_smart_path(path)
+            else
+                argument = "unknown read"
+            end
+        elseif kind == "edit" then
+            local path = update.rawInput.file_path
+                or (update.locations and update.locations[1] and update.locations[1].path)
+                or (
+                    update.content
+                    and update.content[1]
+                    and update.content[1].path
+                )
+
+            if path then
+                argument = FileSystem.to_smart_path(path)
+            else
+                argument = "unknown file"
+            end
+        elseif kind == "search" then
+            -- Codex and Gemini uses the `search` kind, Claude uses it's own RG-like cmd
+            local cmd = update.rawInput.parsed_cmd
+                and update.rawInput.parsed_cmd[1]
+                and update.rawInput.parsed_cmd[1].cmd
+
+            -- Codex runs `ls` to "search" for files, normalizing to "execute" for clarity
+            if cmd and cmd == "ls" then
+                kind = "execute"
+                argument = cmd
+            else
+                argument = cmd or update.title or "unknown search"
+            end
         else
-            local file_path = update.rawInput.file_path
-                and FileSystem.to_smart_path(update.rawInput.file_path)
             local command = update.rawInput.command
-            argument = file_path or command or update.title or ""
+            if type(command) == "table" then
+                command = table.concat(command, " ")
+            end
+
+            argument = command or update.title or ""
         end
 
         -- Always add a leading blank line for spacing the previous message chunk
@@ -247,10 +291,13 @@ function MessageWriter:update_tool_call_block(update)
         -- only update status highlights - don't replace content
         -- Exception: WebSearch and read need content updates when results arrive
         local needs_content_update = (
-            tracker.kind == "WebSearch" or tracker.kind == "read"
+            tracker.kind == "WebSearch"
+            or tracker.kind == "fetch"
+            or tracker.kind == "read"
+            or tracker.kind == "search"
         )
             and update.content
-            and #update.content > 0
+            and not vim.tbl_isempty(update.content)
 
         if
             not needs_content_update
@@ -338,6 +385,7 @@ end
 --- @return string[] lines Array of lines to render
 --- @return agentic.ui.MessageWriter.HighlightRange[] highlight_ranges Array of highlight range specifications (relative to returned lines)
 function MessageWriter:_prepare_block_lines(update, kind, argument)
+    -- FIXIT: Codex is sending multiple updates with different values, and formats, causing the blocks to get empty
     local lines = {}
 
     local header_text = string.format(" %s(%s) ", kind, argument)
