@@ -172,7 +172,103 @@ When creating or modifying classes:
    - Properties that were needed during development but are no longer used
    - Properties that could be local variables instead
 
+## Utility Modules
+
+### Logger (`lua/agentic/utils/logger.lua`)
+
+Debug logging utility controlled by `Config.debug` setting.
+
+**Public Methods:**
+
+- **`Logger.get_timestamp()`** - Returns current timestamp string
+  (`YYYY-MM-DD HH:MM:SS`)
+
+- **`Logger.debug(...)`** - Print debug messages that can be retrieved with the
+  command `:messages`
+  - Only outputs when `Config.debug = true`
+  - Accepts multiple arguments (strings or tables)
+  - Automatically includes timestamp, caller module, and line number
+  - Tables are formatted with `vim.inspect()`
+  - Example: `Logger.debug("Session created", session_id)`
+
+- **`Logger.debug_to_file(...)`** - Append debug messages to log file
+  - Only writes when `Config.debug = true`
+  - Log file location: `~/.cache/nvim/agentic_debug.log` (macOS/Linux)
+  - Same formatting as `Logger.debug()`
+  - Includes separator lines between entries
+  - Example: `Logger.debug_to_file("Complex state:", state_table)`
+
+**Important Notes:**
+
+- ⚠️ Logger only has `debug()` and `debug_to_file()` methods - no `warn()`,
+  `error()`, or `info()` methods
+- All debug output is conditional on `Config.debug` setting
+
+**When adding new public methods:**
+
+When adding new public methods to Logger or any other commonly used utility
+module, **ALWAYS update this AGENTS.md documentation** with:
+
+1. Method signature and brief description
+2. What the method does
+3. Usage examples
+4. Any important notes or gotchas
+
+This prevents confusion and ensures agents know what methods are available.
+
 ## Code Style
+
+### Lua Class Pattern
+
+Use this standard pattern for creating Lua classes:
+
+```lua
+--- @class Animal
+local Animal = {}
+Animal.__index = Animal
+
+function Animal:new()
+    local instance = setmetatable({}, self)
+    return instance
+end
+
+function Animal:move()
+    print("Animal moves")
+end
+```
+
+**Key points:**
+
+- Set `__index` to `self` for inheritance
+- Use `setmetatable` to create instances
+- Return the instance from constructor
+
+**Example with inheritance:**
+
+```lua
+-- Dog class extends Animal
+--- @class Dog : Animal
+local Dog = setmetatable({}, {__index = Animal})
+Dog.__index = Dog
+
+function Dog:new()
+    local instance = setmetatable({}, self)
+    return instance
+end
+
+function Dog:move()
+    Animal.move(self)  -- Call parent method
+    print("Dog runs on four legs")
+end
+
+function Dog:bark()
+    print("Woof!")
+end
+
+-- Usage
+local dog = Dog:new()
+dog:move()
+```
 
 ### LuaCATS Annotations
 
@@ -326,15 +422,71 @@ The ACP documentation can be found at:
   `vim.*` are for this version or newer)
 
 **IMPORTANT**: For dealing with neovim native features and APIs, refer to the
-official docs:
+official docs. Common documentation files include:
 
-- Neovim Lua API:
-  https://raw.githubusercontent.com/neovim/neovim/refs/tags/v0.11.5/runtime/doc/api.txt
-- Neovim Job Control:
-  https://raw.githubusercontent.com/neovim/neovim/refs/tags/v0.11.5/runtime/doc/job_control.txt
-- Neovim Diff:
-  https://raw.githubusercontent.com/neovim/neovim/refs/tags/v0.11.5/runtime/doc/diff.txt
-- Neovim Diagnostics:
-  https://raw.githubusercontent.com/neovim/neovim/refs/tags/v0.11.5/runtime/doc/diagnostic.txt
+- api.txt - Neovim Lua API
+- autocmd.txt - Autocommands
+- change.txt - Changing text
+- channel.txt - Channels and jobs
+- cmdline.txt - Command-line editing
+- diagnostic.txt - Diagnostics
+- diff.txt - Diff mode
+- editing.txt - Editing files
+- fold.txt - Folding
+- indent.txt - Indentation
+- insert.txt - Insert mode
+- job_control.txt - Job control
+- lsp.txt - LSP client
+- lua.txt - Lua API
+- lua-guide.txt - Lua guide
+- map.txt - Key mapping
+- motion.txt - Motion commands
+- options.txt - Options
+- pattern.txt - Patterns and search
+- quickfix.txt - Quickfix and location lists
+- syntax.txt - Syntax highlighting
+- tabpage.txt - Tab pages
+- terminal.txt - Terminal emulator
+- treesitter.txt - Treesitter
+- ui.txt - UI
+- undo.txt - Undo and redo
+- windows.txt - Windows
+- various.txt - Various commands
 
-Don't be limited to these docs, explore more as needed.
+Use GitHub raw URLs or local paths (see section below) to access these files.
+
+### 🚨 NEVER Execute `nvim` to Read Help Manuals
+
+**CRITICAL**: Do NOT run `nvim --headless` or any other `nvim` command to read
+help documentation. Use these alternatives instead:
+
+**Step 1: Find where nvim is installed**
+
+```bash
+realpath $(which nvim)
+```
+
+**Step 2: Locate docs based on installation method**
+
+- **If under Homebrew (macOS):** Path contains `/homebrew/` or `/Cellar/`
+
+  ```
+  <homebrew-path>/Cellar/neovim/<version>/share/nvim/runtime/doc/
+  ```
+
+- **If under Snap (Linux):** Path contains `/snap/`
+
+  ```
+  /snap/nvim/current/usr/share/nvim/runtime/doc/
+  ```
+
+- **Otherwise:** Use GitHub raw URLs as fallback only (NOT PREFERRED)
+  ```
+  https://raw.githubusercontent.com/neovim/neovim/refs/tags/v0.11.5/runtime/doc/<doc-name>.txt
+  ```
+
+**Why:** Running `nvim` commands can hang, cause race conditions, or interfere
+with the development environment. Always use static documentation sources.
+
+ALSO, You can grep in the entire folder instead of file by file, when unsure of
+the exact file to look into.
