@@ -23,6 +23,7 @@ local P = {}
 --- @field file_list agentic.ui.FileList
 --- @field code_selection agentic.ui.CodeSelection
 --- @field slash_commands agentic.acp.SlashCommands
+--- @field agent_modes agentic.acp.AgentModes
 local SessionManager = {}
 SessionManager.__index = SessionManager
 
@@ -35,10 +36,11 @@ function SessionManager:new(tab_page_id)
     local PermissionManager = require("agentic.ui.permission_manager")
     local StatusAnimation = require("agentic.ui.status_animation")
     local SlashCommands = require("agentic.acp.slash_commands")
+    local AgentModes = require("agentic.acp.agent_modes")
     local FileList = require("agentic.ui.file_list")
     local CodeSelection = require("agentic.ui.code_selection")
 
-    local instance = setmetatable({
+    self = setmetatable({
         session_id = nil,
         _is_first_message = true,
         current_provider = Config.provider,
@@ -51,49 +53,48 @@ function SessionManager:new(tab_page_id)
         return
     end
 
-    instance.agent = agent
+    self.agent = agent
 
-    instance.widget = ChatWidget:new(tab_page_id, function(input_text)
-        --- @diagnostic disable-next-line: invisible
-        instance:_handle_input_submit(input_text)
+    self.widget = ChatWidget:new(tab_page_id, function(input_text)
+        self:_handle_input_submit(input_text)
     end)
 
-    instance.message_writer = MessageWriter:new(instance.widget.buf_nrs.chat)
+    self.message_writer = MessageWriter:new(self.widget.buf_nrs.chat)
+    self.status_animation = StatusAnimation:new(self.widget.buf_nrs.chat)
+    self.permission_manager = PermissionManager:new(self.message_writer)
+    self.slash_commands = SlashCommands:new(self.widget.buf_nrs.input)
 
-    instance.status_animation =
-        StatusAnimation:new(instance.widget.buf_nrs.chat)
+    self.agent_modes = AgentModes:new(self.widget.buf_nrs, function(mode_id)
+        self:_handle_mode_change(mode_id)
+    end)
 
-    instance.permission_manager = PermissionManager:new(instance.message_writer)
-
-    instance.slash_commands = SlashCommands:new(instance.widget.buf_nrs.input)
-
-    instance.file_list = FileList:new(
-        instance.widget.buf_nrs.files,
-        function(file_list)
-            if file_list:is_empty() then
-                instance.widget:close_files_window()
-                instance.widget:move_cursor_to(instance.widget.win_nrs.input)
-            else
-                instance.widget:render_header("files")
-            end
+    self.file_list = FileList:new(self.widget.buf_nrs.files, function(file_list)
+        if file_list:is_empty() then
+            self.widget:close_files_window()
+            self.widget:move_cursor_to(self.widget.win_nrs.input)
+        else
+            self.widget.headers.files.suffix = tostring(#file_list:get_files())
+            self.widget:render_header("files")
         end
-    )
+    end)
 
-    instance.code_selection = CodeSelection:new(
-        instance.widget.buf_nrs.code,
+    self.code_selection = CodeSelection:new(
+        self.widget.buf_nrs.code,
         function(code_selection)
             if code_selection:is_empty() then
-                instance.widget:close_code_window()
-                instance.widget:move_cursor_to(instance.widget.win_nrs.input)
+                self.widget:close_code_window()
+                self.widget:move_cursor_to(self.widget.win_nrs.input)
             else
-                instance.widget:render_header("code")
+                self.widget.headers.code.suffix =
+                    tostring(#code_selection:get_selections())
+                self.widget:render_header("code")
             end
         end
     )
 
-    instance:new_session()
+    self:new_session()
 
-    return instance
+    return self
 end
 
 --- @param update agentic.acp.SessionUpdateMessage
@@ -147,6 +148,45 @@ function SessionManager:_on_session_update(update)
             { title = "⚠️ Unknown session update" }
         )
     end
+end
+
+--- Send the newly selected mode to the agent and handle the response
+--- @param mode_id string
+function SessionManager:_handle_mode_change(mode_id)
+    if not self.session_id then
+        return
+    end
+
+    self.agent:set_mode(self.session_id, mode_id, function(_result, err)
+        vim.schedule(function()
+            if err then
+                vim.notify(
+                    "Failed to change mode: " .. err.message,
+                    vim.log.levels.ERROR
+                )
+            else
+                self.agent_modes.current_mode_id = mode_id
+                self:_set_mode_to_chat_header(mode_id)
+
+                vim.notify(
+                    "Mode changed to: " .. mode_id,
+                    vim.log.levels.INFO,
+                    {
+                        title = "Agentic Mode changed",
+                    }
+                )
+            end
+        end)
+    end)
+end
+
+--- @param mode_id string
+function SessionManager:_set_mode_to_chat_header(mode_id)
+    local mode = self.agent_modes:get_mode(mode_id)
+    self.widget.headers.chat.suffix =
+        string.format("Mode: %s", mode and mode.name or mode_id)
+
+    self.widget:render_header("chat")
 end
 
 --- @param input_text string
@@ -372,6 +412,11 @@ function SessionManager:new_session()
         end
 
         self.session_id = response.sessionId
+
+        if response.modes then
+            self.agent_modes:set_modes(response.modes)
+            self:_set_mode_to_chat_header(response.modes.currentModeId)
+        end
 
         -- Reset first message flag for new session, so system info is added again for this session
         self._is_first_message = true

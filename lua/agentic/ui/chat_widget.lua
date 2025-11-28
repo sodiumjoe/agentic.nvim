@@ -7,25 +7,25 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 
 --- @alias agentic.ui.ChatWidget.BufNrs table<agentic.ui.ChatWidget.PanelNames, integer>
 --- @alias agentic.ui.ChatWidget.WinNrs table<agentic.ui.ChatWidget.PanelNames, integer|nil>
+--- @alias agentic.ui.ChatWidget.Headers table<agentic.ui.ChatWidget.PanelNames, {
+---   title: string,
+---   suffix?: string,
+---   persistent?: string|nil }>
 
---- @type table<agentic.ui.ChatWidget.PanelNames, { title: string, suffix?: string|fun(self: agentic.ui.ChatWidget): string }>
+--- @type agentic.ui.ChatWidget.Headers
 local WINDOW_HEADERS = {
-    chat = { title = "󰻞 Agentic Chat" },
-    input = { title = "󰦨 Prompt", suffix = "| <C-s>: submit" },
-    code = { title = "󰪸 Selected Code Snippets | d: remove block" },
+    chat = {
+        title = "󰻞 Agentic Chat",
+        persistent = "<S-Tab>: change mode",
+    },
+    input = { title = "󰦨 Prompt", persistent = "<C-s>: submit" },
+    code = {
+        title = "󰪸 Selected Code Snippets",
+        persistent = "d: remove block",
+    },
     files = {
         title = " Referenced Files",
-        suffix = function(self)
-            local lines =
-                vim.api.nvim_buf_get_lines(self.buf_nrs.files, 0, -1, false)
-            local file_count = 0
-            for _, line in ipairs(lines) do
-                if line:match("%S") then
-                    file_count = file_count + 1
-                end
-            end
-            return string.format("(%d) | d: remove file", file_count)
-        end,
+        persistent = "d: remove file",
     },
 }
 
@@ -35,6 +35,7 @@ local WINDOW_HEADERS = {
 --- @field tab_page_id integer
 --- @field buf_nrs agentic.ui.ChatWidget.BufNrs
 --- @field win_nrs agentic.ui.ChatWidget.WinNrs
+--- @field headers agentic.ui.ChatWidget.Headers
 --- @field on_submit_input fun(prompt: string) external callback to be called when user submits the input
 local ChatWidget = {}
 ChatWidget.__index = ChatWidget
@@ -42,16 +43,17 @@ ChatWidget.__index = ChatWidget
 --- @param tab_page_id integer
 --- @param on_submit_input fun(prompt: string)
 function ChatWidget:new(tab_page_id, on_submit_input)
-    local instance = setmetatable({
-        win_nrs = {},
-    }, ChatWidget)
+    self = setmetatable({}, self)
 
-    instance.on_submit_input = on_submit_input
-    instance.tab_page_id = tab_page_id
+    self.headers = vim.deepcopy(WINDOW_HEADERS)
+    self.win_nrs = {}
 
-    instance.buf_nrs = instance:_initialize()
+    self.on_submit_input = on_submit_input
+    self.tab_page_id = tab_page_id
 
-    return instance
+    self.buf_nrs = self:_initialize()
+
+    return self
 end
 
 function ChatWidget:is_open()
@@ -410,19 +412,21 @@ function ChatWidget:render_header(window_name)
         return
     end
 
-    local config = WINDOW_HEADERS[window_name]
+    local config = self.headers[window_name]
     if not config then
         return
     end
 
-    local opts = { title = config.title }
+    local opts = {
+        config.title,
+    }
 
-    if config.suffix then
-        if type(config.suffix) == "function" then
-            opts.suffix = config.suffix(self)
-        else
-            opts.suffix = config.suffix
-        end
+    if config.suffix ~= nil then
+        table.insert(opts, config.suffix)
+    end
+
+    if config.persistent ~= nil then
+        table.insert(opts, config.persistent)
     end
 
     WindowDecoration.render_window_header(winid, opts)
