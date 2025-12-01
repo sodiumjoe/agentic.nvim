@@ -503,35 +503,45 @@ Use GitHub raw URLs or local paths (see section below) to access these files.
 ### 🚨 NEVER Execute `nvim` to Read Help Manuals
 
 **CRITICAL**: Do NOT run `nvim --headless` or any other `nvim` command to read
-help documentation. Use these alternatives instead:
+help documentation. Use direct file access instead.
 
-**Step 1: Find where nvim is installed**
+**Documentation Lookup Strategy:**
 
-```bash
-realpath $(which nvim)
-```
+Follow this priority order to locate Neovim documentation:
 
-**Step 2: Locate docs based on installation method**
+1. **If OS and Neovim version are known from context:**
+   - **macOS (Homebrew assumed):** Compose path directly
 
-- **If under Homebrew (macOS):** Path contains `/homebrew/` or `/Cellar/`
+     ```
+     /opt/homebrew/Cellar/neovim/<version>/share/nvim/runtime/doc/<doc-name>.txt
+     ```
 
-  ```
-  <homebrew-path>/Cellar/neovim/<version>/share/nvim/runtime/doc/
-  ```
+     Example for v0.11.5:
+     `/opt/homebrew/Cellar/neovim/0.11.5/share/nvim/runtime/doc/api.txt`
 
-- **If under Snap (Linux):** Path contains `/snap/`
+   - **Linux (Snap assumed):** Compose path directly
+     ```
+     /snap/nvim/current/usr/share/nvim/runtime/doc/<doc-name>.txt
+     ```
 
-  ```
-  /snap/nvim/current/usr/share/nvim/runtime/doc/
-  ```
+2. **If OS or version unknown:** Run discovery commands as last resort
 
-- **Otherwise:** Use GitHub raw URLs as fallback only (NOT PREFERRED)
-  ```
-  https://raw.githubusercontent.com/neovim/neovim/refs/tags/v0.11.5/runtime/doc/<doc-name>.txt
-  ```
+   Find Neovim installation:
+
+   ```bash
+   realpath $(which nvim)
+   ```
+
+   Then, use appropriate path pattern based on the result
+
+3. **If local lookup fails:** Use GitHub raw URLs (least preferred)
+
+   ```
+   https://raw.githubusercontent.com/neovim/neovim/refs/tags/v<version>/runtime/doc/<doc-name>.txt
+   ```
 
 **Why:** Running `nvim` commands can hang, cause race conditions, or interfere
 with the development environment. Always use static documentation sources.
 
-ALSO, You can grep in the entire folder instead of file by file, when unsure of
-the exact file to look into.
+**Pro tip:** Use grep on the entire doc folder when unsure which specific file
+contains the information you need.
