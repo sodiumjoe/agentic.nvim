@@ -24,6 +24,7 @@ agents must understand to work effectively with this codebase.
 - ❌ Implementation details that are self-documenting in code
 - ❌ Simple utility functions that have clear names and types
 - ❌ UI components unless they demonstrate critical patterns
+- ❌ Testing patterns and decisions (see `@tests/AGENTS.md`)
 
 **When to add documentation:**
 
@@ -460,6 +461,29 @@ make luacheck   # REQUIRED: Run style/syntax checking
 
 **Not optional.** Every Lua change must pass both checks before completion.
 
+### 🚨 Output Management for Validation Commands
+
+**When running tests, linters, docker build, or validation commands, redirect
+output to avoid context flooding:**
+
+```bash
+# Redirect output to tmp file and capture exit code
+make luals > /tmp/agentic_luals_output.txt 2>&1; echo $?
+make luacheck > /tmp/agentic_luacheck_output.txt 2>&1; echo $?
+./tests/busted.lua <test_file> > /tmp/agentic_test_output.txt 2>&1; echo $?
+```
+
+**Rules:**
+
+- Only read the exit code (0 = success, non-zero = failure)
+- Only read the tmp file if the command fails
+- Prevents large output from consuming context unnecessarily
+- Use unique tmp file names to avoid collisions
+
+### Testing
+
+**See `@tests/AGENTS.md` for complete testing guide.**
+
 ### Type Checking
 
 `make luals` runs Lua Language Server headless diagnosis across all files in the
@@ -676,4 +700,3 @@ Follow this priority order to locate Neovim documentation:
 with development environment.
 
 **Tip:** Use grep on doc folder when unsure which file contains needed info.
-

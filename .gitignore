@@ -22,6 +22,8 @@ node_modules/
 .temp/
 .local/
 
+lazy_repro/
+
 # Mac files
 .DS_Store
 
