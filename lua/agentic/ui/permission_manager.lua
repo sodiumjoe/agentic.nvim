@@ -122,7 +122,7 @@ function PermissionManager:_complete_request(option_id)
     self:_process_next()
 end
 
---- Clear all displayed buttons and keymaps, clear queue
+--- Clear all displayed buttons and keymaps, cancel all pending requests
 function PermissionManager:clear()
     if self.current_request then
         self.message_writer:remove_permission_buttons(
@@ -130,9 +130,16 @@ function PermissionManager:clear()
             self.current_request.button_end_row
         )
         self:_remove_keymaps()
+
+        pcall(self.current_request.callback, nil)
+        self.current_request = nil
     end
 
-    self.current_request = nil
+    for _, item in ipairs(self.queue) do
+        local callback = item[3]
+        pcall(callback, nil)
+    end
+
     self.queue = {}
 end
 

@@ -33,6 +33,7 @@ end
 --- @field session_id? string
 --- @field tab_page_id integer
 --- @field _is_first_message boolean Whether this is the first message in the session, used to add system info only once
+--- @field is_generating boolean
 --- @field widget agentic.ui.ChatWidget
 --- @field agent agentic.acp.ACPClient
 --- @field message_writer agentic.ui.MessageWriter
@@ -64,6 +65,7 @@ function SessionManager:new(tab_page_id)
         session_id = nil,
         tab_page_id = tab_page_id,
         _is_first_message = true,
+        is_generating = false,
         current_provider = Config.provider,
     }, self)
 
@@ -336,8 +338,12 @@ function SessionManager:_handle_input_submit(input_text)
     local session_id = self.session_id
     local tab_page_id = self.tab_page_id
 
-    self.agent:send_prompt(self.session_id, prompt, function(_response, err)
+    self.is_generating = true
+
+    self.agent:send_prompt(self.session_id, prompt, function(response, err)
         vim.schedule(function()
+            self.is_generating = false
+
             local finish_message = string.format(
                 "\n### 🏁 %s\n-----",
                 os.date("%Y-%m-%d %H:%M:%S")
@@ -347,6 +353,11 @@ function SessionManager:_handle_input_submit(input_text)
                 finish_message = string.format(
                     "\n### ❌ Agent finished with error: %s\n%s",
                     vim.inspect(err),
+                    finish_message
+                )
+            elseif response and response.stopReason == "cancelled" then
+                finish_message = string.format(
+                    "\n### 🛑 Generation stopped by the user request\n%s",
                     finish_message
                 )
             end
