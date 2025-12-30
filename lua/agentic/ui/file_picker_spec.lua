@@ -31,19 +31,15 @@ describe("FilePicker:scan_files", function()
             FilePicker.CMD_FD[1] = "echo"
             FilePicker.CMD_GIT[1] = "echo"
 
-            local system_calls = {}
             local call_count = 0
 
             ---@diagnostic disable-next-line: duplicate-set-field -- we must mock it to force specific behavior
             vim.fn.system = function(cmd) -- luacheck: ignore
                 call_count = call_count + 1
-                table.insert(system_calls, cmd)
 
                 if call_count == 1 then
-                    -- First command fails
                     return original_system("false")
                 else
-                    -- Second command succeeds
                     original_system("true")
                     return "file1.lua\nfile2.lua\nfile3.lua\n"
                 end
@@ -52,7 +48,7 @@ describe("FilePicker:scan_files", function()
             local files = picker:scan_files()
 
             -- Should have called system exactly 2 times (first fails, second succeeds)
-            assert.are.equal(2, #system_calls)
+            assert.are.equal(2, call_count)
             assert.are.equal(3, #files)
         end)
     end)
@@ -83,31 +79,16 @@ describe("FilePicker:scan_files", function()
             assert.is_true(#files_git > 0)
 
             -- All commands should return the same count
-            assert.are.equal(
-                #files_rg,
-                #files_fd,
-                "rg and fd counts don't match"
-            )
-            assert.are.equal(
-                #files_fd,
-                #files_git,
-                "fd and git counts don't match"
-            )
+            assert.are.equal(#files_rg, #files_fd)
+            assert.are.equal(#files_fd, #files_git)
 
-            assert.are.same(
-                files_rg,
-                files_fd,
-                "rg and fd return different files"
-            )
-            assert.are.same(
-                files_fd,
-                files_git,
-                "fd and git return different files"
-            )
+            assert.are.same(files_rg, files_fd)
+            assert.are.same(files_fd, files_git)
         end)
 
         it("should use glob fallback when all commands fail", function()
-            local original_exclude_patterns = FilePicker.GLOB_EXCLUDE_PATTERNS
+            local original_exclude_patterns =
+                vim.tbl_extend("force", {}, FilePicker.GLOB_EXCLUDE_PATTERNS)
 
             -- First, get files from rg for comparison
             FilePicker.CMD_RG[1] = original_cmd_rg
@@ -120,23 +101,156 @@ describe("FilePicker:scan_files", function()
             FilePicker.CMD_FD[1] = "nonexistent_fd"
             FilePicker.CMD_GIT[1] = "nonexistent_git"
 
-            -- Add lazy_repro to exclude patterns for this test
+            -- lazy_repro is the temp folder where plugins are installed during tests
             table.insert(FilePicker.GLOB_EXCLUDE_PATTERNS, "lazy_repro/")
+            -- .local is the folder where Neovim is installed during tests in CI
+            table.insert(FilePicker.GLOB_EXCLUDE_PATTERNS, "%.local/")
 
             local files_glob = picker:scan_files()
 
-            -- Should return files using glob fallback
             assert.is_true(#files_glob > 0)
+            assert.are.same(files_rg, files_glob)
 
-            -- Compare rg vs glob
-            assert.are.same(
-                files_rg,
-                files_glob,
-                "rg and glob return different files"
-            )
-
-            -- Restore original exclude patterns
             FilePicker.GLOB_EXCLUDE_PATTERNS = original_exclude_patterns
         end)
     end)
+end)
+
+describe("FilePicker keymap fallback", function()
+    local bufnr
+    local tab_called
+    local Config
+    local original_pumvisible
+
+    local pum_return_value = 0
+
+    before_each(function()
+        Config = require("agentic.config")
+        Config.file_picker.enabled = true
+
+        original_pumvisible = vim.fn.pumvisible
+
+        ---@diagnostic disable-next-line: duplicate-set-field
+        vim.fn.pumvisible = function() -- luacheck: ignore
+            return pum_return_value
+        end
+
+        bufnr = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_set_current_buf(bufnr)
+
+        tab_called = false
+    end)
+
+    after_each(function()
+        pum_return_value = 0
+
+        vim.fn.pumvisible = original_pumvisible -- luacheck: ignore
+
+        pcall(vim.keymap.del, "i", "<Tab>")
+        pcall(vim.keymap.del, "i", "<CR>")
+
+        if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end
+    end)
+
+    it(
+        "should call fallback Tab mapping when completion menu not visible",
+        function()
+            -- Set up a pre-existing GLOBAL Tab mapping (simulates copilot.vim)
+            vim.keymap.set("i", "<Tab>", function()
+                tab_called = true
+                return "TAB_CALLED"
+            end, {
+                expr = true,
+                desc = "Test Tab mapping",
+            })
+
+            FilePicker.new(bufnr)
+
+            vim.cmd([[execute "normal i\<Tab>"]])
+
+            assert.is_true(tab_called)
+        end
+    )
+
+    it(
+        "should call fallback CR mapping when completion menu not visible",
+        function()
+            local cr_called = false
+
+            -- Set up a pre-existing GLOBAL CR mapping
+            vim.keymap.set("i", "<CR>", function()
+                cr_called = true
+                return "CR_CALLED"
+            end, {
+                expr = true,
+            })
+
+            FilePicker.new(bufnr)
+
+            vim.cmd([[execute "normal i\<CR>"]])
+
+            assert.is_true(cr_called)
+        end
+    )
+
+    it("should NOT call fallback when completion menu is visible", function()
+        vim.keymap.set("i", "<Tab>", function()
+            tab_called = true
+            return "TAB_CALLED"
+        end, {
+            expr = true,
+        })
+
+        FilePicker.new(bufnr)
+
+        pum_return_value = 1
+
+        vim.cmd([[execute "normal i\<Tab>"]])
+
+        assert.is_false(tab_called)
+    end)
+
+    it("should call fallback for lazy-loaded global mapping", function()
+        -- Initialize FilePicker BEFORE setting up any global mapping
+        -- This simulates a plugin that loads after Agentic
+        FilePicker.new(bufnr)
+
+        -- Now register a global Tab mapping (simulates lazy-loaded plugin)
+        vim.keymap.set("i", "<Tab>", function()
+            tab_called = true
+            return "LAZY_TAB_CALLED"
+        end, {
+            expr = true,
+            desc = "Lazy-loaded Tab mapping",
+        })
+
+        vim.cmd([[execute "normal i\<Tab>"]])
+
+        assert.is_true(tab_called)
+    end)
+
+    it(
+        "should handle vimscript expr mappings with proper keycode conversion",
+        function()
+            -- Simulates copilot.vim: expr mapping returns complex keycodes
+            -- 2 tabs, expression register inserting "123", then 2 newlines
+            vim.cmd([[
+                function! TestVimscriptExpr()
+                    return "\t\t\<C-R>\<C-R>=123\<CR>\<CR>\<CR>"
+                endfunction
+                inoremap <expr> <Tab> TestVimscriptExpr()
+            ]])
+
+            FilePicker.new(bufnr)
+
+            -- this one has silence because of the vimScript mapping
+            vim.cmd([[silent execute "normal i\<Tab>"]])
+
+            local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+            local content = table.concat(lines, "\n")
+            assert.equal("\t\t123\n\n", content)
+        end
+    )
 end)

@@ -1,6 +1,7 @@
 local FileSystem = require("agentic.utils.file_system")
 local Config = require("agentic.config")
 local Logger = require("agentic.utils.logger")
+local KeymapFallback = require("agentic.utils.keymap_fallback")
 
 --- @class agentic.ui.FilePicker
 --- @field _files table[]
@@ -46,30 +47,55 @@ function FilePicker.new(bufnr)
     return instance
 end
 
+--- Completion menu accept sequence
+--- Space after <C-y> ensures completion menu closes and user is ready to start a new completion
+local COMPLETION_ACCEPT =
+    vim.api.nvim_replace_termcodes("<C-y> ", true, true, true)
+
 --- Sets up omnifunc completion and @ trigger detection
 --- @param bufnr number
 function FilePicker:_setup_completion(bufnr)
     vim.bo[bufnr].omnifunc =
-        "v:lua.require'agentic.ui.file_picker'._complete_func"
+        "v:lua.require'agentic.ui.file_picker'.complete_func"
     vim.bo[bufnr].iskeyword = vim.bo[bufnr].iskeyword .. ",@"
     instances_by_buffer[bufnr] = self
 
-    -- Space after <C-y> ensures completion menu closes and user is ready to type `@` again and start a new completion
+    local prev_tab_map = KeymapFallback.get_existing_mapping("i", "<Tab>")
+
     vim.keymap.set("i", "<Tab>", function()
         if vim.fn.pumvisible() == 1 then
-            return "<C-y> "
-        else
-            return "<Tab>"
+            return COMPLETION_ACCEPT
         end
-    end, { buffer = bufnr, expr = true, noremap = true })
+
+        -- Always check for existing mapping to handle lazy-loaded plugins
+        -- the check is very fast and Tab isn't pressed frequently to cause noticeable lag
+        prev_tab_map = KeymapFallback.get_existing_mapping("i", "<Tab>")
+            or prev_tab_map
+        return KeymapFallback.execute_fallback(prev_tab_map, "<Tab>")
+    end, {
+        buffer = bufnr,
+        expr = true,
+        replace_keycodes = false, -- Needed to avoid double-escaping, as it's true by default when expr=true
+        desc = KeymapFallback.MARKER .. " Tab completion fallback",
+    })
+
+    local prev_cr_map = KeymapFallback.get_existing_mapping("i", "<CR>")
 
     vim.keymap.set("i", "<CR>", function()
         if vim.fn.pumvisible() == 1 then
-            return "<C-y> "
-        else
-            return "<CR>"
+            return COMPLETION_ACCEPT
         end
-    end, { buffer = bufnr, expr = true, noremap = true })
+
+        -- Always check for existing mapping to handle lazy-loaded plugins
+        prev_cr_map = KeymapFallback.get_existing_mapping("i", "<CR>")
+            or prev_cr_map
+        return KeymapFallback.execute_fallback(prev_cr_map, "<CR>")
+    end, {
+        buffer = bufnr,
+        expr = true,
+        replace_keycodes = false,
+        desc = KeymapFallback.MARKER .. " CR completion fallback",
+    })
 
     local last_at_pos = nil
 
@@ -241,11 +267,11 @@ FilePicker.GLOB_EXCLUDE_PATTERNS = {
     "%.bundle/",
     -- Build/Cache
     "%.cache/",
-    ".turbo/",
+    "%.turbo/",
     "out/",
     -- Coverage
     "coverage/",
-    ".nyc_output/",
+    "%.nyc_output/",
     -- Package managers
     "%.npm/",
     "%.yarn/",
@@ -271,7 +297,7 @@ end
 --- @param findstart number 1 for finding start position, 0 for returning matches
 --- @param _base string The text to complete
 --- @return number|table
-function FilePicker._complete_func(findstart, _base)
+function FilePicker.complete_func(findstart, _base)
     if findstart == 1 then
         local line = vim.api.nvim_get_current_line()
         local cursor = vim.api.nvim_win_get_cursor(0)
