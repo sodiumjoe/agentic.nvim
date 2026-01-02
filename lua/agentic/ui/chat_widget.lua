@@ -41,7 +41,7 @@ local WINDOW_HEADERS = {
 --- @field tab_page_id integer
 --- @field buf_nrs agentic.ui.ChatWidget.BufNrs
 --- @field win_nrs agentic.ui.ChatWidget.WinNrs
---- @field headers agentic.ui.ChatWidget.Headers
+--- @field headers table<string, any> Header configs and render functions (keys: panel_name, panel_name_render_fn)
 --- @field on_submit_input fun(prompt: string) external callback to be called when user submits the input
 local ChatWidget = {}
 ChatWidget.__index = ChatWidget
@@ -51,7 +51,23 @@ ChatWidget.__index = ChatWidget
 function ChatWidget:new(tab_page_id, on_submit_input)
     self = setmetatable({}, self)
 
+    -- Merge user config headers with defaults (user config takes precedence)
     self.headers = vim.deepcopy(WINDOW_HEADERS)
+    if Config.headers then
+        for panel_name, user_header in pairs(Config.headers) do
+            -- If user provided a function, store it separately
+            if type(user_header) == "function" then
+                self.headers[panel_name .. "_render_fn"] = user_header
+            elseif self.headers[panel_name] and type(user_header) == "table" then
+                self.headers[panel_name] = vim.tbl_extend(
+                    "force",
+                    self.headers[panel_name],
+                    user_header
+                )
+            end
+        end
+    end
+
     self.win_nrs = {}
 
     self.on_submit_input = on_submit_input
@@ -559,6 +575,20 @@ function ChatWidget:render_header(window_name)
         return
     end
 
+    -- Check if user provided a custom render function
+    local render_fn = self.headers[window_name .. "_render_fn"]
+    if render_fn then
+        local parts = {
+            title = config.title,
+            suffix = config.suffix,
+            persistent = config.persistent,
+        }
+        local custom_header = render_fn(parts)
+        WindowDecoration.render_window_header(winid, { custom_header })
+        return
+    end
+
+    -- Default table-based rendering
     local opts = {
         config.title,
     }

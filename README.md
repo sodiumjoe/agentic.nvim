@@ -199,6 +199,86 @@ configure it per provider:
 The mode will only be set if it's available from the provider. Use `<S-Tab>` to
 see available modes for your provider.
 
+### Customizing Window Headers
+
+You can customize the header text for each panel in the chat widget using either
+a table configuration or a custom render function.
+
+#### Table-Based Configuration
+
+```lua
+{
+  headers = {
+    chat = {
+      title = "󰻞 My Custom Chat Title",
+      persistent = "<S-Tab>: change mode",  -- Optional context help
+    },
+    input = {
+      title = "󰦨 Type Your Prompt",
+      persistent = "<C-s>: submit",
+    },
+    code = {
+      title = "󰪸 Code Blocks",
+      persistent = "d: remove block",
+    },
+    files = {
+      title = " File References",
+      persistent = "d: remove file",
+    },
+    todos = {
+      title = " Tasks",
+    },
+  },
+}
+```
+
+**Header Configuration Fields:**
+
+- `title` (string) - Main header text (supports Nerd Font icons)
+- `persistent` (string, optional) - Context help text shown in the header
+
+#### Function-Based Configuration
+
+For complete control over header rendering, provide a function that receives the
+header parts:
+
+```lua
+{
+  headers = {
+    chat = function(parts)
+      -- parts.title: string - Main header text
+      -- parts.suffix: string|nil - Dynamic info (e.g., "Mode: plan")
+      -- parts.persistent: string|nil - Context help text
+      
+      local header = parts.title
+      if parts.suffix then
+        header = header .. " [" .. parts.suffix .. "]"
+      end
+      if parts.persistent then
+        header = header .. " • " .. parts.persistent
+      end
+      return header
+    end,
+    
+    files = function(parts)
+      -- Custom format for file count
+      if parts.suffix then
+        return string.format("%s (%s)", parts.title, parts.suffix)
+      end
+      return parts.title
+    end,
+  },
+}
+```
+
+**Notes:**
+
+- You only need to specify the headers you want to customize
+- The `suffix` field (e.g., file counts, agent mode) is managed internally
+- Table and function configurations can be mixed
+- Functions receive all parts and return a single formatted string
+- Headers support icons from Nerd Fonts for visual flair
+
 ## 🚀 Usage (Public Lua API)
 
 ### Commands
