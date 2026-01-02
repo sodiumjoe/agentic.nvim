@@ -96,6 +96,12 @@ local ConfigDefault = {
     windows = {
         width = "40%",
 
+        --- Window options passed to nvim_set_option_value for all widget windows
+        --- These override the default options (wrap, linebreak, winfixbuf, winfixheight)
+        --- See :h nvim_set_option_value and :h options for available options
+        --- @type table<string, any>
+        win_opts = {},
+
         input = {
             height = 10,
         },

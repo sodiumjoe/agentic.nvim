@@ -526,6 +526,7 @@ The `lua/agentic/config_default.lua` file defines all user-configurable options.
    - Include default values
    - Update the configuration table if one exists
    - Document environment variables if any
+   - Provide usage examples and common use cases
 
 #### Theme & Highlight Groups
 
