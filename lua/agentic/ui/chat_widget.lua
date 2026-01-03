@@ -375,14 +375,21 @@ function ChatWidget:_bind_keymaps()
         end
     end
 
-    -- Add keybindings to chat buffer to jump back to input and start insert mode
-    for _, key in ipairs({ "a", "A", "o", "O", "i", "I", "c", "C", "x", "X" }) do
-        BufHelpers.keymap_set(self.buf_nrs.chat, "n", key, function()
-            self:move_cursor_to(
-                self.win_nrs.input,
-                BufHelpers.start_insert_on_last_char
-            )
-        end)
+    -- Add keybindings to chat, todos, code, and files buffers to jump back to input and start insert mode
+    for _, bufnr in ipairs({
+        self.buf_nrs.chat,
+        self.buf_nrs.todos,
+        self.buf_nrs.code,
+        self.buf_nrs.files,
+    }) do
+        for _, key in ipairs({ "a", "A", "o", "O", "i", "I", "c", "C", "x", "X" }) do
+            BufHelpers.keymap_set(bufnr, "n", key, function()
+                self:move_cursor_to(
+                    self.win_nrs.input,
+                    BufHelpers.start_insert_on_last_char
+                )
+            end)
+        end
     end
 end
 
