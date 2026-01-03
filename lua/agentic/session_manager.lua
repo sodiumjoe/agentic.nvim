@@ -468,12 +468,16 @@ function SessionManager:new_session()
         self.session_id = response.sessionId
 
         -- Persist session ID for potential resumption
-        local SessionPersistence = require("agentic.utils.session_persistence")
-        SessionPersistence.save_session(
-            self.session_id,
-            vim.fn.getcwd(),
-            self.current_provider
-        )
+        -- Must schedule to avoid fast event context issues with getcwd()
+        vim.schedule(function()
+            local SessionPersistence =
+                require("agentic.utils.session_persistence")
+            SessionPersistence.save_session(
+                self.session_id,
+                vim.fn.getcwd(),
+                self.current_provider
+            )
+        end)
 
         if response.modes then
             self.agent_modes:set_modes(response.modes)
