@@ -12,10 +12,20 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 ---   suffix?: string,
 ---   persistent?: string|nil }>
 
+--- Type for header parts passed to custom render functions
+--- @alias agentic.ui.ChatWidget.HeaderParts { title: string, suffix?: string, persistent?: string|nil }
+
+--- Type for custom header render function
+--- @alias agentic.ui.ChatWidget.HeaderRenderFn fun(parts: agentic.ui.ChatWidget.HeaderParts): string
+
+--- Internal headers storage including both config and render functions
+--- Contains panel configs (e.g., "chat") and their render functions (e.g., "chat_render_fn")
+--- @alias agentic.ui.ChatWidget.HeadersInternal table<string, { title: string, suffix?: string, persistent?: string|nil }|agentic.ui.ChatWidget.HeaderRenderFn>
+
 --- Options for controlling widget display behavior
 --- @alias agentic.ui.ChatWidget.ShowOpts { focus_prompt?: boolean }
 
---- @type agentic.ui.ChatWidget.Headers
+--- @type agentic.ui.ChatWidget.HeadersInternal
 local WINDOW_HEADERS = {
     chat = {
         title = "󰻞 Agentic Chat",
@@ -41,7 +51,7 @@ local WINDOW_HEADERS = {
 --- @field tab_page_id integer
 --- @field buf_nrs agentic.ui.ChatWidget.BufNrs
 --- @field win_nrs agentic.ui.ChatWidget.WinNrs
---- @field headers table<string, any> Header configs and render functions (keys: panel_name, panel_name_render_fn)
+--- @field headers agentic.ui.ChatWidget.HeadersInternal
 --- @field on_submit_input fun(prompt: string) external callback to be called when user submits the input
 local ChatWidget = {}
 ChatWidget.__index = ChatWidget
@@ -58,12 +68,15 @@ function ChatWidget:new(tab_page_id, on_submit_input)
             -- If user provided a function, store it separately
             if type(user_header) == "function" then
                 self.headers[panel_name .. "_render_fn"] = user_header
-            elseif self.headers[panel_name] and type(user_header) == "table" then
-                self.headers[panel_name] = vim.tbl_extend(
-                    "force",
-                    self.headers[panel_name],
-                    user_header
-                )
+            elseif type(user_header) == "table" then
+                local existing = self.headers[panel_name]
+                if existing and type(existing) == "table" then
+                    self.headers[panel_name] = vim.tbl_extend(
+                        "force",
+                        existing,
+                        user_header
+                    )
+                end
             end
         end
     end
