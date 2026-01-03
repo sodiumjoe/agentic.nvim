@@ -451,7 +451,7 @@ end
 --- @param bufnr integer
 --- @param enter boolean
 --- @param opts vim.api.keyset.win_config
---- @param win_opts table<string, any>
+--- @param win_opts? table<string, any>
 --- @return integer winid
 function ChatWidget:_open_win(bufnr, enter, opts, win_opts)
     --- @type vim.api.keyset.win_config
@@ -466,13 +466,18 @@ function ChatWidget:_open_win(bufnr, enter, opts, win_opts)
 
     local winid = vim.api.nvim_open_win(bufnr, enter, config)
 
-    local merged_win_opts = vim.tbl_deep_extend("force", {
-        wrap = true,
-        linebreak = true,
-        winfixbuf = true,
-        winfixheight = true,
-        -- winhighlight = "Normal:NormalFloat,WinSeparator:FloatBorder",
-    }, win_opts or {})
+    local merged_win_opts = vim.tbl_deep_extend(
+        "force",
+        {
+            wrap = true,
+            linebreak = true,
+            winfixbuf = true,
+            winfixheight = true,
+            -- winhighlight = "Normal:NormalFloat,WinSeparator:FloatBorder",
+        },
+        Config.windows.win_opts or {},
+        win_opts or {}
+    )
 
     for name, value in pairs(merged_win_opts) do
         vim.api.nvim_set_option_value(name, value, { win = winid })
