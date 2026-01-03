@@ -85,6 +85,16 @@ function Agentic.new_session()
     end
 end
 
+--- Resumes a previously persisted session for the current working directory
+--- If no session is found, falls back to creating a new session
+function Agentic.resume_session()
+    SessionRegistry.get_session_for_tab_page(nil, function(session)
+        session:resume_or_new_session()
+        session:add_selection_or_file_to_session()
+        session.widget:show()
+    end)
+end
+
 --- Stops the agent's current generation or tool execution
 --- The session remains active and ready for the next prompt
 --- Safe to call multiple times or when no generation is active

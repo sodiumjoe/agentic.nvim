@@ -467,6 +467,14 @@ function SessionManager:new_session()
 
         self.session_id = response.sessionId
 
+        -- Persist session ID for potential resumption
+        local SessionPersistence = require("agentic.utils.session_persistence")
+        SessionPersistence.save_session(
+            self.session_id,
+            vim.fn.getcwd(),
+            self.current_provider
+        )
+
         if response.modes then
             self.agent_modes:set_modes(response.modes)
 
@@ -515,6 +523,114 @@ function SessionManager:new_session()
             )
         end)
     end)
+end
+
+--- Try to resume a previously persisted session, or create a new one if not found
+function SessionManager:resume_or_new_session()
+    local SessionPersistence = require("agentic.utils.session_persistence")
+
+    self:_cancel_session()
+
+    -- Try to load persisted session ID
+    local cwd = vim.fn.getcwd()
+    local persisted_session_id =
+        SessionPersistence.load_session(cwd, self.current_provider)
+
+    if not persisted_session_id then
+        Logger.debug("No persisted session found, creating new session")
+        self:new_session()
+        return
+    end
+
+    self.status_animation:start("busy")
+
+    --- @type agentic.acp.ClientHandlers
+    local handlers = {
+        on_error = function(err)
+            Logger.debug("Agent error: ", err)
+
+            self.message_writer:write_message(
+                self.agent:generate_agent_message({
+                    "🐞 Agent Error:",
+                    "",
+                    vim.inspect(err),
+                })
+            )
+        end,
+
+        on_session_update = function(update)
+            self:_on_session_update(update)
+        end,
+
+        on_tool_call = function(tool_call)
+            self.message_writer:write_tool_call_block(tool_call)
+        end,
+
+        on_tool_call_update = function(tool_call_update)
+            self.message_writer:update_tool_call_block(tool_call_update)
+
+            if tool_call_update.status == "failed" then
+                self.permission_manager:remove_request_by_tool_call_id(
+                    tool_call_update.tool_call_id
+                )
+            end
+
+            if
+                not self.permission_manager.current_request
+                and #self.permission_manager.queue == 0
+            then
+                self.status_animation:start("generating")
+            end
+        end,
+
+        on_request_permission = function(request, callback)
+            self.status_animation:stop()
+
+            local wrapped_callback = function(option_id)
+                callback(option_id)
+
+                if
+                    not self.permission_manager.current_request
+                    and #self.permission_manager.queue == 0
+                then
+                    self.status_animation:start("generating")
+                end
+            end
+
+            self.permission_manager:add_request(request, wrapped_callback)
+        end,
+    }
+
+    -- Try to load the session
+    self.agent:load_session(persisted_session_id, cwd, {}, handlers)
+
+    self.session_id = persisted_session_id
+    self.status_animation:stop()
+
+    -- Don't reset _is_first_message for resumed sessions (system info already sent)
+    self._is_first_message = false
+
+    vim.schedule(function()
+        local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+        local provider_name = self.agent.provider_config.name
+        local resumed_message = string.format(
+            "# Resumed Session - %s - %s\n- %s\n--- --",
+            provider_name,
+            persisted_session_id,
+            timestamp
+        )
+
+        self.message_writer:write_message(
+            self.agent:generate_user_message(resumed_message)
+        )
+    end)
+
+    Logger.debug(
+        "Resumed session:",
+        persisted_session_id,
+        "for provider:",
+        self.current_provider
+    )
 end
 
 function SessionManager:_cancel_session()

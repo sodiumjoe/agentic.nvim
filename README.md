@@ -30,6 +30,11 @@ interface, your colors, and your keymaps.
   responses
 - **🤖 🤖 Multiple agents** - Independent Chat sessions for each Neovim Tab let
   you have multiple agents working simultaneously on different tasks
+- **💾 Session Resumption** - Resume previous conversations after closing and
+  reopening Neovim
+  - Sessions are persisted per project directory and provider
+  - Use `:lua require("agentic").resume_session()` to continue where you left
+    off
 - **🎯 Clean UI** - Sidebar interface with markdown rendering and syntax
   highlighting
 - **⌨️ Slash Commands** - Native Neovim completion for ACP slash commands with
@@ -129,6 +134,12 @@ tools like `nvm`, `fnm`, etc...
       function() require("agentic").new_session() end,
       mode = { "n", "v", "i" },
       desc = "New Agentic Session"
+    },
+    {
+      "<C-S-,>",
+      function() require("agentic").resume_session() end,
+      mode = { "n", "v", "i" },
+      desc = "Resume Agentic Session"
     },
   },
 }
