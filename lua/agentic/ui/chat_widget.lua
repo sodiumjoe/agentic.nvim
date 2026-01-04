@@ -446,8 +446,8 @@ function ChatWidget:_open_win(bufnr, enter, opts, win_opts)
             winfixheight = true,
             -- winhighlight = "Normal:NormalFloat,WinSeparator:FloatBorder",
         },
-        Config.windows.win_opts or {},
-        win_opts or {}
+        win_opts or {},
+        Config.windows.win_opts or {}
     )
 
     for name, value in pairs(merged_win_opts) do
