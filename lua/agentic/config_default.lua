@@ -241,11 +241,11 @@ local ConfigDefault = {
             persistent = "d: remove block",
         },
         files = {
-            title = " Referenced Files",
+            title = " Referenced Files",
             persistent = "d: remove file",
         },
         todos = {
-            title = " TODO Items",
+            title = " TODO Items",
         },
     },
 }
