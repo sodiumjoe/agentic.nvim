@@ -201,50 +201,8 @@ see available modes for your provider.
 
 ### Customizing Window Options
 
-You can customize the behavior of all chat widget windows by configuring the
-`windows.win_opts` property. These options override the default window settings.
-
-**Default window options:**
-- `wrap = true` - Line wrapping enabled
-- `linebreak = true` - Break lines at word boundaries
-- `winfixbuf = true` - Prevent buffer changes in window
-- `winfixheight = true` - Prevent height changes
-
-**Example - Override defaults:**
-
-```lua
-{
-  windows = {
-    width = "40%",  -- Width of the sidebar
-
-    -- Override default window options for all widget windows
-    win_opts = {
-      wrap = false,        -- Disable line wrapping (overrides default)
-      scrolloff = 8,       -- Keep 8 lines visible above/below cursor
-      foldcolumn = "1",    -- Show fold column
-      cursorline = true,   -- Highlight cursor line
-      -- Add any other window options from :h options
-    },
-
-    input = {
-      height = 10,  -- Height of the prompt input window
-    },
-
-    todos = {
-      display = true,   -- Show todo list window
-      max_height = 10,  -- Maximum height for todos window
-    },
-  },
-}
-```
-
-**Available options:** See `:h options` for all available window options.
-
-**Example options to customize:**
-- `wrap` - Enable/disable line wrapping
-- `cursorline` - Highlight the cursor line
-- `signcolumn` - Control sign column display
-- `foldcolumn` - Control fold column display
+You can customize the behavior of individual chat widget windows by configuring the
+`win_opts` property for each window. These options override the default window settings.
 
 ## 🚀 Usage (Public Lua API)
 

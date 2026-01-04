@@ -81,7 +81,7 @@ function ChatWidget:show(opts)
         self.win_nrs.chat = self:_open_win(self.buf_nrs.chat, false, {
             -- Only the top most needs a fixed width, others adapt to available space
             width = self._calculate_width(Config.windows.width),
-        }, {
+        }, "chat", {
             winfixheight = false,
             scrolloff = 4, -- Keep 4 lines visible above/below cursor (keeps animation visible)
         })
@@ -98,7 +98,7 @@ function ChatWidget:show(opts)
             split = "below",
             height = Config.windows.input.height,
             fixed = true,
-        }, {})
+        }, "input", {})
 
         self:render_header("input")
     end
@@ -113,7 +113,7 @@ function ChatWidget:show(opts)
             win = self.win_nrs.chat,
             split = "below",
             height = 15,
-        }, {})
+        }, "code", {})
 
         self:render_header("code")
     end
@@ -128,7 +128,7 @@ function ChatWidget:show(opts)
             win = self.win_nrs.input,
             split = "above",
             height = 5,
-        }, {})
+        }, "files", {})
 
         self:render_header("files")
     end
@@ -149,7 +149,7 @@ function ChatWidget:show(opts)
             win = self.win_nrs.chat,
             split = "below",
             height = height,
-        }, {})
+        }, "todos", {})
 
         self:render_header("todos")
     end
@@ -422,9 +422,10 @@ end
 --- @param bufnr integer
 --- @param enter boolean
 --- @param opts vim.api.keyset.win_config
+--- @param window_name "chat"|"input"|"code"|"files"|"todos"
 --- @param win_opts? table<string, any>
 --- @return integer winid
-function ChatWidget:_open_win(bufnr, enter, opts, win_opts)
+function ChatWidget:_open_win(bufnr, enter, opts, window_name, win_opts)
     --- @type vim.api.keyset.win_config
     local default_opts = {
         split = "right",
@@ -437,6 +438,10 @@ function ChatWidget:_open_win(bufnr, enter, opts, win_opts)
 
     local winid = vim.api.nvim_open_win(bufnr, enter, config)
 
+    -- Get per-window config
+    local window_config = Config.windows[window_name] or {}
+    local config_win_opts = window_config.win_opts or {}
+
     local merged_win_opts = vim.tbl_deep_extend(
         "force",
         {
@@ -447,7 +452,7 @@ function ChatWidget:_open_win(bufnr, enter, opts, win_opts)
             -- winhighlight = "Normal:NormalFloat,WinSeparator:FloatBorder",
         },
         win_opts or {},
-        Config.windows.win_opts or {}
+        config_win_opts
     )
 
     for name, value in pairs(merged_win_opts) do
