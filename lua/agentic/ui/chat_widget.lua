@@ -8,13 +8,6 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 --- @alias agentic.ui.ChatWidget.BufNrs table<agentic.ui.ChatWidget.PanelNames, integer>
 --- @alias agentic.ui.ChatWidget.WinNrs table<agentic.ui.ChatWidget.PanelNames, integer|nil>
 
---- @class agentic.ui.ChatWidget.HeaderConfig
---- @field title string
---- @field suffix? string
---- @field persistent? string
-
---- @alias agentic.ui.ChatWidget.Headers table<agentic.ui.ChatWidget.PanelNames, agentic.ui.ChatWidget.HeaderConfig>
-
 --- Type for header parts passed to custom render functions
 --- @class agentic.ui.ChatWidget.HeaderParts
 --- @field title string Main header text
@@ -24,15 +17,25 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 --- Type for custom header render function
 --- @alias agentic.ui.ChatWidget.HeaderRenderFn fun(parts: agentic.ui.ChatWidget.HeaderParts): string
 
---- Internal headers storage including both config and render functions
+--- Headers storage including both config and render functions
 --- Contains panel configs (e.g., "chat") and their render functions (e.g., "chat_render_fn")
---- @alias agentic.ui.ChatWidget.HeadersInternal table<string, { title: string, suffix?: string, persistent?: string|nil }|agentic.ui.ChatWidget.HeaderRenderFn>
+--- @class agentic.ui.ChatWidget.Headers
+--- @field chat agentic.ui.ChatWidget.HeaderParts
+--- @field input agentic.ui.ChatWidget.HeaderParts
+--- @field code agentic.ui.ChatWidget.HeaderParts
+--- @field files agentic.ui.ChatWidget.HeaderParts
+--- @field todos agentic.ui.ChatWidget.HeaderParts
+--- @field chat_render_fn? agentic.ui.ChatWidget.HeaderRenderFn
+--- @field input_render_fn? agentic.ui.ChatWidget.HeaderRenderFn
+--- @field code_render_fn? agentic.ui.ChatWidget.HeaderRenderFn
+--- @field files_render_fn? agentic.ui.ChatWidget.HeaderRenderFn
+--- @field todos_render_fn? agentic.ui.ChatWidget.HeaderRenderFn
 
 --- Options for controlling widget display behavior
 --- @class agentic.ui.ChatWidget.ShowOpts
 --- @field focus_prompt? boolean
 
---- @type agentic.ui.ChatWidget.HeadersInternal
+--- @type agentic.ui.ChatWidget.Headers
 local WINDOW_HEADERS = {
     chat = {
         title = "󰻞 Agentic Chat",
@@ -58,7 +61,7 @@ local WINDOW_HEADERS = {
 --- @field tab_page_id integer
 --- @field buf_nrs agentic.ui.ChatWidget.BufNrs
 --- @field win_nrs agentic.ui.ChatWidget.WinNrs
---- @field headers agentic.ui.ChatWidget.HeadersInternal
+--- @field headers agentic.ui.ChatWidget.Headers
 --- @field on_submit_input fun(prompt: string) external callback to be called when user submits the input
 local ChatWidget = {}
 ChatWidget.__index = ChatWidget
