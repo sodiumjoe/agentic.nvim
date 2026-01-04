@@ -230,31 +230,23 @@ a table configuration or a custom render function.
   headers = {
     chat = {
       title = "󰻞 My Custom Chat Title",
-      persistent = "<S-Tab>: change mode",  -- Optional context help
+      persistent = "<S-Tab>: change mode",
     },
     input = {
-      title = "󰦨 Type Your Prompt",
-      persistent = "<C-s>: submit",
+      ...
     },
     code = {
-      title = "󰪸 Code Blocks",
-      persistent = "d: remove block",
+      ...
     },
     files = {
-      title = " File References",
-      persistent = "d: remove file",
+      ...
     },
     todos = {
-      title = " Tasks",
+      ...
     },
   },
 }
 ```
-
-**Header Configuration Fields:**
-
-- `title` (string) - Main header text (supports Nerd Font icons)
-- `persistent` (string, optional) - Context help text shown in the header
 
 #### Function-Based Configuration
 
@@ -265,10 +257,6 @@ header parts:
 {
   headers = {
     chat = function(parts)
-      -- parts.title: string - Main header text
-      -- parts.suffix: string|nil - Dynamic info (e.g., "Mode: plan")
-      -- parts.persistent: string|nil - Context help text
-      
       local header = parts.title
       if parts.suffix then
         header = header .. " [" .. parts.suffix .. "]"
@@ -277,14 +265,6 @@ header parts:
         header = header .. " • " .. parts.persistent
       end
       return header
-    end,
-    
-    files = function(parts)
-      -- Custom format for file count
-      if parts.suffix then
-        return string.format("%s (%s)", parts.title, parts.suffix)
-      end
-      return parts.title
     end,
   },
 }
@@ -616,3 +596,35 @@ the the acknowledgments 😊.
 [opencode]: https://github.com/sst/opencode
 [cursor-agent]: https://github.com/blowmage/cursor-agent-acp-npm
 
+### Event Hooks
+
+Agentic.nvim provides hooks that let you respond to key events during the chat
+lifecycle. These are useful for logging, notifications, analytics, or
+integrating with other plugins.
+
+```lua
+{
+  hooks = {
+    -- Called when the user submits a prompt
+    on_prompt_submit = function(data)
+      -- data.prompt: string - The user's prompt text
+      -- data.session_id: string - The ACP session ID
+      -- data.tab_page_id: number - The Neovim tabpage ID
+      vim.notify("Prompt submitted: " .. data.prompt:sub(1, 50))
+    end,
+
+    -- Called when the agent finishes responding
+    on_response_complete = function(data)
+      -- data.session_id: string - The ACP session ID
+      -- data.tab_page_id: number - The Neovim tabpage ID
+      -- data.success: boolean - Whether response completed without error
+      -- data.error: table|nil - Error details if failed
+      if data.success then
+        vim.notify("Agent finished!", vim.log.levels.INFO)
+      else
+        vim.notify("Agent error: " .. vim.inspect(data.error), vim.log.levels.ERROR)
+      end
+    end,
+  },
+}
+```
