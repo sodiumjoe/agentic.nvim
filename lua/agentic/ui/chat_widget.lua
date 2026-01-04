@@ -17,19 +17,13 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 --- Type for custom header render function
 --- @alias agentic.ui.ChatWidget.HeaderRenderFn fun(parts: agentic.ui.ChatWidget.HeaderParts): string
 
---- Headers storage including both config and render functions
---- Contains panel configs (e.g., "chat") and their render functions (e.g., "chat_render_fn")
+--- Headers storage - each panel can have either config parts or a custom render function
 --- @class agentic.ui.ChatWidget.Headers
---- @field chat agentic.ui.ChatWidget.HeaderParts
---- @field input agentic.ui.ChatWidget.HeaderParts
---- @field code agentic.ui.ChatWidget.HeaderParts
---- @field files agentic.ui.ChatWidget.HeaderParts
---- @field todos agentic.ui.ChatWidget.HeaderParts
---- @field chat_render_fn? agentic.ui.ChatWidget.HeaderRenderFn
---- @field input_render_fn? agentic.ui.ChatWidget.HeaderRenderFn
---- @field code_render_fn? agentic.ui.ChatWidget.HeaderRenderFn
---- @field files_render_fn? agentic.ui.ChatWidget.HeaderRenderFn
---- @field todos_render_fn? agentic.ui.ChatWidget.HeaderRenderFn
+--- @field chat agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn
+--- @field input agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn
+--- @field code agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn
+--- @field files agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn
+--- @field todos agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn
 
 --- Options for controlling widget display behavior
 --- @class agentic.ui.ChatWidget.ShowOpts
@@ -75,9 +69,8 @@ function ChatWidget:new(tab_page_id, on_submit_input)
     self.headers = vim.deepcopy(WINDOW_HEADERS)
     if Config.headers then
         for panel_name, user_header in pairs(Config.headers) do
-            -- If user provided a function, store it separately
             if type(user_header) == "function" then
-                self.headers[panel_name .. "_render_fn"] = user_header
+                self.headers[panel_name] = user_header
             elseif type(user_header) == "table" then
                 local existing = self.headers[panel_name]
                 if existing and type(existing) == "table" then
@@ -85,7 +78,7 @@ function ChatWidget:new(tab_page_id, on_submit_input)
                         "force",
                         existing,
                         user_header
-                    )
+                    ) --[[@as agentic.ui.ChatWidget.HeaderParts]]
                 end
             end
         end
@@ -590,21 +583,25 @@ function ChatWidget:_bind_events_to_change_headers()
                     local change_mode_key =
                         find_keymap(Config.keymaps.widget.change_mode, mode)
 
-                    if change_mode_key ~= nil then
-                        self.headers.chat.persistent =
-                            string.format("%s: change mode", change_mode_key)
-                    else
-                        self.headers.chat.persistent = nil
+                    if type(self.headers.chat) == "table" then
+                        if change_mode_key ~= nil then
+                            self.headers.chat.persistent =
+                                string.format("%s: change mode", change_mode_key)
+                        else
+                            self.headers.chat.persistent = nil
+                        end
                     end
 
                     local submit_key =
                         find_keymap(Config.keymaps.prompt.submit, mode)
 
-                    if submit_key ~= nil then
-                        self.headers.input.persistent =
-                            string.format("%s: submit", submit_key)
-                    else
-                        self.headers.input.persistent = nil
+                    if type(self.headers.input) == "table" then
+                        if submit_key ~= nil then
+                            self.headers.input.persistent =
+                                string.format("%s: submit", submit_key)
+                        else
+                            self.headers.input.persistent = nil
+                        end
                     end
 
                     self:render_header("chat")
@@ -652,35 +649,35 @@ function ChatWidget:render_header(window_name)
         return
     end
 
-    local config = self.headers[window_name]
-    if not config then
+    local header = self.headers[window_name]
+    if not header then
         return
     end
 
-    -- Check if user provided a custom render function
-    local render_fn = self.headers[window_name .. "_render_fn"]
-    if render_fn then
+    -- Check if it's a custom render function
+    if type(header) == "function" then
+        local default_config = WINDOW_HEADERS[window_name]
+        --- @type agentic.ui.ChatWidget.HeaderParts
         local parts = {
-            title = config.title,
-            suffix = config.suffix,
-            persistent = config.persistent,
+            title = default_config.title,
+            suffix = default_config.suffix,
+            persistent = default_config.persistent,
         }
-        local custom_header = render_fn(parts)
+        local custom_header = header(parts)
         WindowDecoration.render_window_header(winid, { custom_header })
         return
     end
 
-    -- Default table-based rendering
     local opts = {
-        config.title,
+        header.title,
     }
 
-    if config.suffix ~= nil then
-        table.insert(opts, config.suffix)
+    if header.suffix ~= nil then
+        table.insert(opts, header.suffix)
     end
 
-    if config.persistent ~= nil then
-        table.insert(opts, config.persistent)
+    if header.persistent ~= nil then
+        table.insert(opts, header.persistent)
     end
 
     WindowDecoration.render_window_header(winid, opts)
