@@ -218,16 +218,9 @@ local ConfigDefault = {
     --- 1. A table with title and persistent fields
     --- 2. A function that receives header parts and returns a custom header string
     ---
-    --- Function signature: fun(parts: { title: string, suffix?: string, persistent?: string }): string
-    ---
     --- The suffix field is managed internally and shows dynamic info like counts.
-    --- @class agentic.UserConfig.HeaderParts
-    --- @field title string Main header text
-    --- @field suffix? string Dynamic info (e.g., file count)
-    --- @field persistent? string Context help text
     ---
-    --- @alias agentic.UserConfig.HeaderConfig { title?: string, persistent?: string } | fun(parts: agentic.UserConfig.HeaderParts): string
-    ---
+    --- @alias agentic.UserConfig.HeaderConfig { title?: string, persistent?: string } | fun(parts: agentic.ui.ChatWidget.HeaderParts): string
     --- @class agentic.UserConfig.Headers
     --- @field chat? agentic.UserConfig.HeaderConfig
     --- @field input? agentic.UserConfig.HeaderConfig
