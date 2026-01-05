@@ -78,13 +78,19 @@ function ChatWidget:show(opts)
         not self.win_nrs.chat
         or not vim.api.nvim_win_is_valid(self.win_nrs.chat)
     then
-        self.win_nrs.chat = self:_open_win(self.buf_nrs.chat, false, {
-            -- Only the top most needs a fixed width, others adapt to available space
-            width = self._calculate_width(Config.windows.width),
-        }, "chat", {
-            winfixheight = false,
-            scrolloff = 4, -- Keep 4 lines visible above/below cursor (keeps animation visible)
-        })
+        self.win_nrs.chat = self:_open_win(
+            self.buf_nrs.chat,
+            false,
+            {
+                -- Only the top most needs a fixed width, others adapt to available space
+                width = self._calculate_width(Config.windows.width),
+            },
+            "chat",
+            {
+                winfixheight = false,
+                scrolloff = 4, -- Keep 4 lines visible above/below cursor (keeps animation visible)
+            }
+        )
 
         self:render_header("chat")
     end
@@ -442,18 +448,13 @@ function ChatWidget:_open_win(bufnr, enter, opts, window_name, win_opts)
     local window_config = Config.windows[window_name] or {}
     local config_win_opts = window_config.win_opts or {}
 
-    local merged_win_opts = vim.tbl_deep_extend(
-        "force",
-        {
-            wrap = true,
-            linebreak = true,
-            winfixbuf = true,
-            winfixheight = true,
-            -- winhighlight = "Normal:NormalFloat,WinSeparator:FloatBorder",
-        },
-        win_opts or {},
-        config_win_opts
-    )
+    local merged_win_opts = vim.tbl_deep_extend("force", {
+        wrap = true,
+        linebreak = true,
+        winfixbuf = true,
+        winfixheight = true,
+        -- winhighlight = "Normal:NormalFloat,WinSeparator:FloatBorder",
+    }, win_opts or {}, config_win_opts)
 
     for name, value in pairs(merged_win_opts) do
         vim.api.nvim_set_option_value(name, value, { win = winid })
