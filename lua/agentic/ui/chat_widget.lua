@@ -11,7 +11,7 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 --- Type for header parts passed to custom render functions
 --- @class agentic.ui.ChatWidget.HeaderParts
 --- @field title string Main header text
---- @field suffix? string Dynamic info (e.g., file count)
+--- @field context? string Dynamic info (e.g., file count)
 --- @field persistent? string Context help text
 
 --- Type for custom header render function
@@ -655,7 +655,7 @@ function ChatWidget:render_header(window_name)
         --- @type agentic.ui.ChatWidget.HeaderParts
         local parts = {
             title = default_config.title,
-            suffix = default_config.suffix,
+            context = default_config.context,
             persistent = default_config.persistent,
         }
         local custom_header = header(parts)
@@ -667,8 +667,8 @@ function ChatWidget:render_header(window_name)
         header.title,
     }
 
-    if header.suffix ~= nil then
-        table.insert(opts, header.suffix)
+    if header.context ~= nil then
+        table.insert(opts, header.context)
     end
 
     if header.persistent ~= nil then

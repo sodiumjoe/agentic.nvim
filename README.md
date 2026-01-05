@@ -247,8 +247,8 @@ header parts:
   headers = {
     chat = function(parts)
       local header = parts.title
-      if parts.suffix then
-        header = header .. " [" .. parts.suffix .. "]"
+      if parts.context then
+        header = header .. " [" .. parts.context .. "]"
       end
       if parts.persistent then
         header = header .. " • " .. parts.persistent

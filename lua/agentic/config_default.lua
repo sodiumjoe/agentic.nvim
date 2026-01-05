@@ -218,7 +218,7 @@ local ConfigDefault = {
     --- 1. A table with title and persistent fields
     --- 2. A function that receives header parts and returns a custom header string
     ---
-    --- The suffix field is managed internally and shows dynamic info like counts.
+    --- The context field is managed internally and shows dynamic info like counts.
     ---
     --- @type agentic.ui.ChatWidget.Headers
     headers = {
@@ -226,3 +226,4 @@ local ConfigDefault = {
 }
 
 return ConfigDefault
+
