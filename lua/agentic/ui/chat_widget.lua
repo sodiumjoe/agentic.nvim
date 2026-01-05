@@ -18,12 +18,7 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 --- @alias agentic.ui.ChatWidget.HeaderRenderFn fun(parts: agentic.ui.ChatWidget.HeaderParts): string
 
 --- Headers storage - each panel can have either config parts or a custom render function
---- @class agentic.ui.ChatWidget.Headers
---- @field chat agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn
---- @field input agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn
---- @field code agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn
---- @field files agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn
---- @field todos agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn
+--- @alias agentic.ui.ChatWidget.Headers table<agentic.ui.ChatWidget.PanelNames, agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn>
 
 --- Options for controlling widget display behavior
 --- @class agentic.ui.ChatWidget.ShowOpts
