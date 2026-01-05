@@ -222,25 +222,6 @@ local ConfigDefault = {
     ---
     --- @type agentic.ui.ChatWidget.Headers
     headers = {
-        chat = {
-            title = "󰻞 Agentic Chat",
-            persistent = "<S-Tab>: change mode",
-        },
-        input = {
-            title = "󰦨 Prompt",
-            persistent = "<C-s>: submit",
-        },
-        code = {
-            title = "󰪸 Selected Code Snippets",
-            persistent = "d: remove block",
-        },
-        files = {
-            title = " Referenced Files",
-            persistent = "d: remove file",
-        },
-        todos = {
-            title = " TODO Items",
-        },
     },
 }
 
