@@ -422,7 +422,7 @@ end
 --- @param bufnr integer
 --- @param enter boolean
 --- @param opts vim.api.keyset.win_config
---- @param window_name "chat"|"input"|"code"|"files"|"todos"
+--- @param window_name agentic.ui.ChatWidget.PanelNames
 --- @param win_opts table<string, any>
 --- @return integer winid
 function ChatWidget:_open_win(bufnr, enter, opts, window_name, win_opts)
