@@ -220,7 +220,7 @@ local ConfigDefault = {
     ---
     --- The suffix field is managed internally and shows dynamic info like counts.
     ---
-    --- @type Partial<agentic.ui.ChatWidget.Headers>
+    --- @type agentic.ui.ChatWidget.Headers
     headers = {
         chat = {
             title = "󰻞 Agentic Chat",
