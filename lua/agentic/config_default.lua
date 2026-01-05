@@ -220,13 +220,7 @@ local ConfigDefault = {
     ---
     --- The suffix field is managed internally and shows dynamic info like counts.
     ---
-    --- @alias agentic.UserConfig.HeaderConfig { title?: string, persistent?: string } | fun(parts: agentic.ui.ChatWidget.HeaderParts): string
-    --- @class agentic.UserConfig.Headers
-    --- @field chat? agentic.UserConfig.HeaderConfig
-    --- @field input? agentic.UserConfig.HeaderConfig
-    --- @field code? agentic.UserConfig.HeaderConfig
-    --- @field files? agentic.UserConfig.HeaderConfig
-    --- @field todos? agentic.UserConfig.HeaderConfig
+    --- @type Partial<agentic.ui.ChatWidget.Headers>
     headers = {
         chat = {
             title = "󰻞 Agentic Chat",
