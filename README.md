@@ -232,18 +232,7 @@ a table configuration or a custom render function.
       title = "󰻞 My Custom Chat Title",
       persistent = "<S-Tab>: change mode",
     },
-    input = {
-      ...
-    },
-    code = {
-      ...
-    },
-    files = {
-      ...
-    },
-    todos = {
-      ...
-    },
+  -- ...
   },
 }
 ```
