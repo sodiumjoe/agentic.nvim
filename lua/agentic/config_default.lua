@@ -27,6 +27,10 @@
 --- @field widget table<string, agentic.UserConfig.KeymapValue>
 --- @field prompt table<string, agentic.UserConfig.KeymapValue>
 
+--- Window options passed to nvim_set_option_value
+--- Overrides default options (wrap, linebreak, winfixbuf, winfixheight)
+--- @alias agentic.UserConfig.WinOpts table<string, any>
+
 --- @class agentic.UserConfig
 local ConfigDefault = {
     --- Enable printing debug messages which can be read via `:messages`
@@ -91,10 +95,6 @@ local ConfigDefault = {
             },
         },
     },
-
-    --- Window options passed to nvim_set_option_value
-    --- Overrides default options (wrap, linebreak, winfixbuf, winfixheight)
-    --- @alias agentic.UserConfig.WinOpts table<string, any>
 
     --- @class agentic.UserConfig.Windows.Chat
     --- @field win_opts? agentic.UserConfig.WinOpts
