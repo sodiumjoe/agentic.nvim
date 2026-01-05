@@ -215,7 +215,7 @@ local ConfigDefault = {
 
     --- Customize window headers for each panel in the chat widget.
     --- Each header can be either:
-    --- 1. A table with title and persistent fields
+    --- 1. A table with title and suffix fields
     --- 2. A function that receives header parts and returns a custom header string
     ---
     --- The context field is managed internally and shows dynamic info like counts.
@@ -226,4 +226,3 @@ local ConfigDefault = {
 }
 
 return ConfigDefault
-

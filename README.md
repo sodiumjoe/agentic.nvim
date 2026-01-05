@@ -230,7 +230,7 @@ a table configuration or a custom render function.
   headers = {
     chat = {
       title = "󰻞 My Custom Chat Title",
-      persistent = "<S-Tab>: change mode",
+      suffix = "<S-Tab>: change mode",
     },
   -- ...
   },
@@ -250,8 +250,8 @@ header parts:
       if parts.context then
         header = header .. " [" .. parts.context .. "]"
       end
-      if parts.persistent then
-        header = header .. " • " .. parts.persistent
+      if parts.suffix then
+        header = header .. " • " .. parts.suffix
       end
       return header
     end,

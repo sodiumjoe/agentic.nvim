@@ -12,7 +12,7 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 --- @class agentic.ui.ChatWidget.HeaderParts
 --- @field title string Main header text
 --- @field context? string Dynamic info (e.g., file count)
---- @field persistent? string Context help text
+--- @field suffix? string Context help text
 
 --- Type for custom header render function
 --- @alias agentic.ui.ChatWidget.HeaderRenderFn fun(parts: agentic.ui.ChatWidget.HeaderParts): string
@@ -28,16 +28,16 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 local WINDOW_HEADERS = {
     chat = {
         title = "󰻞 Agentic Chat",
-        persistent = "<S-Tab>: change mode",
+        suffix = "<S-Tab>: change mode",
     },
-    input = { title = "󰦨 Prompt", persistent = "<C-s>: submit" },
+    input = { title = "󰦨 Prompt", suffix = "<C-s>: submit" },
     code = {
         title = "󰪸 Selected Code Snippets",
-        persistent = "d: remove block",
+        suffix = "d: remove block",
     },
     files = {
         title = " Referenced Files",
-        persistent = "d: remove file",
+        suffix = "d: remove file",
     },
     todos = {
         title = " TODO Items",
@@ -565,7 +565,7 @@ local function find_keymap(keymaps, mode)
     end
 end
 
---- Binds events to change the persistent header texts based on current mode keymaps
+--- Binds events to change the suffix header texts based on current mode keymaps
 --- For the Chat and Input buffers only
 --- @private
 function ChatWidget:_bind_events_to_change_headers()
@@ -580,10 +580,10 @@ function ChatWidget:_bind_events_to_change_headers()
 
                     if type(self.headers.chat) == "table" then
                         if change_mode_key ~= nil then
-                            self.headers.chat.persistent =
+                            self.headers.chat.suffix =
                                 string.format("%s: change mode", change_mode_key)
                         else
-                            self.headers.chat.persistent = nil
+                            self.headers.chat.suffix = nil
                         end
                     end
 
@@ -592,10 +592,10 @@ function ChatWidget:_bind_events_to_change_headers()
 
                     if type(self.headers.input) == "table" then
                         if submit_key ~= nil then
-                            self.headers.input.persistent =
+                            self.headers.input.suffix =
                                 string.format("%s: submit", submit_key)
                         else
-                            self.headers.input.persistent = nil
+                            self.headers.input.suffix = nil
                         end
                     end
 
@@ -656,7 +656,7 @@ function ChatWidget:render_header(window_name)
         local parts = {
             title = default_config.title,
             context = default_config.context,
-            persistent = default_config.persistent,
+            suffix = default_config.suffix,
         }
         local custom_header = header(parts)
         WindowDecoration.render_window_header(winid, { custom_header })
@@ -671,8 +671,8 @@ function ChatWidget:render_header(window_name)
         table.insert(opts, header.context)
     end
 
-    if header.persistent ~= nil then
-        table.insert(opts, header.persistent)
+    if header.suffix ~= nil then
+        table.insert(opts, header.suffix)
     end
 
     WindowDecoration.render_window_header(winid, opts)
