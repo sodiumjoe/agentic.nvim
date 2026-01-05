@@ -69,11 +69,8 @@ function ChatWidget:new(tab_page_id, on_submit_input)
             elseif type(user_header) == "table" then
                 local existing = self.headers[panel_name]
                 if existing and type(existing) == "table" then
-                    self.headers[panel_name] = vim.tbl_extend(
-                        "force",
-                        existing,
-                        user_header
-                    ) --[[@as agentic.ui.ChatWidget.HeaderParts]]
+                    self.headers[panel_name] =
+                        vim.tbl_extend("force", existing, user_header) --[[@as agentic.ui.ChatWidget.HeaderParts]]
                 end
             end
         end
@@ -580,8 +577,10 @@ function ChatWidget:_bind_events_to_change_headers()
 
                     if type(self.headers.chat) == "table" then
                         if change_mode_key ~= nil then
-                            self.headers.chat.suffix =
-                                string.format("%s: change mode", change_mode_key)
+                            self.headers.chat.suffix = string.format(
+                                "%s: change mode",
+                                change_mode_key
+                            )
                         else
                             self.headers.chat.suffix = nil
                         end

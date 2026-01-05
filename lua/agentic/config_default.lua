@@ -221,8 +221,7 @@ local ConfigDefault = {
     --- The context field is managed internally and shows dynamic info like counts.
     ---
     --- @type agentic.ui.ChatWidget.Headers
-    headers = {
-    },
+    headers = {},
 }
 
 return ConfigDefault
