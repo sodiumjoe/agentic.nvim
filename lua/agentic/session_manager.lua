@@ -101,7 +101,10 @@ function SessionManager:new(tab_page_id)
             self.widget:close_files_window()
             self.widget:move_cursor_to(self.widget.win_nrs.input)
         else
-            self.widget.headers.files.context = tostring(#file_list:get_files())
+            if type(self.widget.headers.files) == "table" then
+                self.widget.headers.files.context =
+                    tostring(#file_list:get_files())
+            end
             self.widget:render_header("files")
         end
     end)
@@ -113,8 +116,10 @@ function SessionManager:new(tab_page_id)
                 self.widget:close_code_window()
                 self.widget:move_cursor_to(self.widget.win_nrs.input)
             else
-                self.widget.headers.code.context =
-                    tostring(#code_selection:get_selections())
+                if type(self.widget.headers.code) == "table" then
+                    self.widget.headers.code.context =
+                        tostring(#code_selection:get_selections())
+                end
                 self.widget:render_header("code")
             end
         end
