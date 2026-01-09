@@ -156,6 +156,13 @@ local ConfigDefault = {
                     mode = { "i", "n", "v" },
                 },
             },
+
+            paste_image = {
+                {
+                    "<localleader>p",
+                    mode = { "n", "i" },
+                },
+            },
         },
     },
 
@@ -191,6 +198,12 @@ local ConfigDefault = {
 
     --- @class agentic.UserConfig.FilePicker
     file_picker = {
+        enabled = true,
+    },
+
+    --- @class agentic.UserConfig.ImagePaste
+    --- @field enabled boolean Enable image drag-and-drop to add images to referenced files
+    image_paste = {
         enabled = true,
     },
 
