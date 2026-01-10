@@ -615,20 +615,30 @@ function ChatWidget:render_header(window_name)
     local user_header = Config.headers and Config.headers[window_name]
     local dynamic_header = self.headers[window_name]
 
+    local function render_parts(parts)
+        local pieces = { parts.title }
+        if parts.context ~= nil then
+            table.insert(pieces, parts.context)
+        end
+        if parts.suffix ~= nil then
+            table.insert(pieces, parts.suffix)
+        end
+        WindowDecoration.render_window_header(winid, pieces)
+    end
+
     if user_header == nil then
-        WindowDecoration.render_window_header(winid, {
-            dynamic_header.title,
-            dynamic_header.context,
-            dynamic_header.suffix,
-        })
+        render_parts(dynamic_header)
         return
     end
 
     if type(user_header) == "function" then
         local custom_header = user_header(dynamic_header)
-        if custom_header ~= nil then
-            WindowDecoration.render_window_header(winid, { custom_header })
+        if custom_header == nil or custom_header == "" then
+            -- Clear winbar (WindowDecoration handles empty concat by disabling winbar)
+            WindowDecoration.render_window_header(winid, {})
+            return
         end
+        WindowDecoration.render_window_header(winid, { custom_header })
         return
     end
 
@@ -639,19 +649,7 @@ function ChatWidget:render_header(window_name)
         merged_header = vim.tbl_extend("force", dynamic_header, user_header) --[[@as agentic.HeaderParts]]
     end
 
-    local opts = {
-        merged_header.title,
-    }
-
-    if merged_header.context ~= nil then
-        table.insert(opts, merged_header.context)
-    end
-
-    if merged_header.suffix ~= nil then
-        table.insert(opts, merged_header.suffix)
-    end
-
-    WindowDecoration.render_window_header(winid, opts)
+    render_parts(merged_header)
 end
 
 function ChatWidget:close_code_window()
