@@ -1,5 +1,20 @@
 --- @alias agentic.UserConfig.ProviderName "claude-acp" | "gemini-acp" | "codex-acp" | "opencode-acp" | "cursor-acp"
 
+--- Type for header parts passed to custom render functions
+--- @class agentic.UserConfig.HeaderParts
+--- @field title string Main header text
+--- @field context? string Dynamic info (e.g., file count)
+--- @field suffix? string Context help text
+
+--- Type for custom header render function
+--- @alias agentic.UserConfig.HeaderRenderFn fun(parts: agentic.UserConfig.HeaderParts): string|nil
+
+--- Panel names in the chat widget
+--- @alias agentic.UserConfig.PanelNames "chat"|"todos"|"code"|"files"|"input"
+
+--- User config headers - each panel can have either config parts or a custom render function
+--- @alias agentic.UserConfig.Headers table<agentic.UserConfig.PanelNames, agentic.UserConfig.HeaderParts|agentic.UserConfig.HeaderRenderFn>
+
 --- Data passed to the on_prompt_submit hook
 --- @class agentic.UserConfig.PromptSubmitData
 --- @field prompt string The user's prompt text
@@ -220,7 +235,7 @@ local ConfigDefault = {
     ---
     --- The context field is managed internally and shows dynamic info like counts.
     ---
-    --- @type agentic.ui.ChatWidget.Headers
+    --- @type agentic.UserConfig.Headers
     headers = {},
 }
 

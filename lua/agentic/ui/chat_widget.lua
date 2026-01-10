@@ -8,17 +8,7 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 --- @alias agentic.ui.ChatWidget.BufNrs table<agentic.ui.ChatWidget.PanelNames, integer>
 --- @alias agentic.ui.ChatWidget.WinNrs table<agentic.ui.ChatWidget.PanelNames, integer|nil>
 
---- Type for header parts passed to custom render functions
---- @class agentic.ui.ChatWidget.HeaderParts
---- @field title string Main header text
---- @field context? string Dynamic info (e.g., file count)
---- @field suffix? string Context help text
-
---- Type for custom header render function
---- @alias agentic.ui.ChatWidget.HeaderRenderFn fun(parts: agentic.ui.ChatWidget.HeaderParts): string|nil
-
---- Headers storage - each panel can have either config parts or a custom render function
---- @alias agentic.ui.ChatWidget.Headers table<agentic.ui.ChatWidget.PanelNames, agentic.ui.ChatWidget.HeaderParts|agentic.ui.ChatWidget.HeaderRenderFn>
+--- @alias agentic.ui.ChatWidget.Headers table<agentic.ui.ChatWidget.PanelNames, agentic.UserConfig.HeaderParts>
 
 --- Options for controlling widget display behavior
 --- @class agentic.ui.ChatWidget.ShowOpts
@@ -623,29 +613,29 @@ function ChatWidget:render_header(window_name)
     end
 
     local user_header = Config.headers and Config.headers[window_name]
-    local default_header = self.headers[window_name]
+    local dynamic_header = self.headers[window_name]
 
-    if user_header == nil and default_header == nil then
+    if user_header == nil then
+        WindowDecoration.render_window_header(winid, {
+            dynamic_header.title,
+            dynamic_header.context,
+            dynamic_header.suffix,
+        })
         return
     end
 
-    if type(user_header) == "function" and type(default_header) == "table" then
-        local custom_header = user_header(default_header)
+    if type(user_header) == "function" then
+        local custom_header = user_header(dynamic_header)
         if custom_header ~= nil then
             WindowDecoration.render_window_header(winid, { custom_header })
         end
         return
     end
 
-    if type(default_header) ~= "table" then
-        return
-    end
-
-    --- @type agentic.ui.ChatWidget.HeaderParts
-    local merged_header = default_header
+    local merged_header = dynamic_header
 
     if type(user_header) == "table" then
-        merged_header = vim.tbl_extend("force", default_header, user_header) --[[@as agentic.ui.ChatWidget.HeaderParts]]
+        merged_header = vim.tbl_extend("force", dynamic_header, user_header) --[[@as agentic.UserConfig.HeaderParts]]
     end
 
     local opts = {
