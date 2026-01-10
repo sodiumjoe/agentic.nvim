@@ -625,7 +625,7 @@ function ChatWidget:render_header(window_name)
     local user_header = Config.headers and Config.headers[window_name]
     local default_header = self.headers[window_name]
 
-    if user_header == nil then
+    if user_header == nil and default_header == nil then
         return
     end
 
