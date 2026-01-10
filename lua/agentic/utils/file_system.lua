@@ -1,7 +1,38 @@
+local Logger = require("agentic.utils.logger")
 local BufHelpers = require("agentic.utils.buf_helpers")
 
 --- @class agentic.utils.FileSystem
 local FileSystem = {}
+
+FileSystem.IMAGE_MIMES = {
+    png = "image/png",
+    jpg = "image/jpeg",
+    jpeg = "image/jpeg",
+    gif = "image/gif",
+    webp = "image/webp",
+    bmp = "image/bmp",
+    svg = "image/svg+xml",
+    avif = "image/avif",
+    heic = "image/heic",
+    heif = "image/heif",
+    tiff = "image/tiff",
+    tif = "image/tiff",
+    ico = "image/x-icon",
+}
+
+FileSystem.AUDIO_MIMES = {
+    mp3 = "audio/mpeg",
+    wav = "audio/wav",
+    ogg = "audio/ogg",
+    flac = "audio/flac",
+    aac = "audio/aac",
+    m4a = "audio/mp4",
+    wma = "audio/x-ms-wma",
+    opus = "audio/opus",
+    webm = "audio/webm",
+    aiff = "audio/aiff",
+    ape = "audio/ape",
+}
 
 --- Read the file content from a buffer if loaded, to get unsaved changes,
 --- or from disk otherwise
@@ -92,7 +123,7 @@ function FileSystem.read_file(abs_path, line, limit, callback)
     lines = lines or {}
 
     if err ~= nil then
-        vim.notify(
+        Logger.notify(
             "Agent file read error: " .. err,
             vim.log.levels.ERROR,
             { title = " Read file error" }
@@ -107,6 +138,21 @@ function FileSystem.read_file(abs_path, line, limit, callback)
 
     local content = table.concat(lines, "\n")
     callback(content)
+end
+
+--- @param path string
+--- @return string the base64-encoded content of the file or an empty string otherwise
+function FileSystem.read_file_base64(path)
+    local file = io.open(path, "rb")
+    if not file then
+        Logger.notify("Failed to open file to read base64: " .. path)
+        return ""
+    end
+
+    local content = file:read("*a")
+    file:close()
+
+    return vim.base64.encode(content)
 end
 
 --- @param path string
@@ -130,6 +176,12 @@ end
 --- - or uses ~ for home directory
 function FileSystem.to_smart_path(path)
     return vim.fn.fnamemodify(path, ":p:~:.")
+end
+
+--- @param file_path string
+--- @return string
+function FileSystem.get_file_extension(file_path)
+    return vim.fn.fnamemodify(file_path, ":e"):lower()
 end
 
 return FileSystem
