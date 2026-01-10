@@ -561,10 +561,8 @@ function ChatWidget:_bind_events_to_change_headers()
                         find_keymap(Config.keymaps.widget.change_mode, mode)
 
                     if change_mode_key ~= nil then
-                        self.headers.chat.suffix = string.format(
-                            "%s: change mode",
-                            change_mode_key
-                        )
+                        self.headers.chat.suffix =
+                            string.format("%s: change mode", change_mode_key)
                     else
                         self.headers.chat.suffix = nil
                     end
@@ -647,11 +645,7 @@ function ChatWidget:render_header(window_name)
     local merged_header = default_header
 
     if type(user_header) == "table" then
-        merged_header = vim.tbl_extend(
-            "force",
-            default_header,
-            user_header
-        ) --[[@as agentic.ui.ChatWidget.HeaderParts]]
+        merged_header = vim.tbl_extend("force", default_header, user_header) --[[@as agentic.ui.ChatWidget.HeaderParts]]
     end
 
     local opts = {
