@@ -8,7 +8,7 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 --- @alias agentic.ui.ChatWidget.BufNrs table<agentic.ui.ChatWidget.PanelNames, integer>
 --- @alias agentic.ui.ChatWidget.WinNrs table<agentic.ui.ChatWidget.PanelNames, integer|nil>
 
---- @alias agentic.ui.ChatWidget.Headers table<agentic.ui.ChatWidget.PanelNames, agentic.UserConfig.HeaderParts>
+--- @alias agentic.ui.ChatWidget.Headers table<agentic.ui.ChatWidget.PanelNames, agentic.HeaderParts>
 
 --- Options for controlling widget display behavior
 --- @class agentic.ui.ChatWidget.ShowOpts
@@ -632,10 +632,11 @@ function ChatWidget:render_header(window_name)
         return
     end
 
+    --- @type agentic.HeaderParts
     local merged_header = dynamic_header
 
     if type(user_header) == "table" then
-        merged_header = vim.tbl_extend("force", dynamic_header, user_header) --[[@as agentic.UserConfig.HeaderParts]]
+        merged_header = vim.tbl_extend("force", dynamic_header, user_header) --[[@as agentic.HeaderParts]]
     end
 
     local opts = {

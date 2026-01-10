@@ -1,19 +1,23 @@
 --- @alias agentic.UserConfig.ProviderName "claude-acp" | "gemini-acp" | "codex-acp" | "opencode-acp" | "cursor-acp"
 
---- Type for header parts passed to custom render functions
---- @class agentic.UserConfig.HeaderParts
+--- User-facing header configuration for table-based headers
+--- @class agentic.UserConfig.HeaderConfig
+--- @field title? string Override default title
+--- @field suffix? string Override default suffix
+
+--- Runtime header parts with dynamic context (defined here to avoid circular dependency)
+--- @class agentic.HeaderParts
 --- @field title string Main header text
---- @field context? string Dynamic info (e.g., file count)
+--- @field context? string Dynamic info (managed internally)
 --- @field suffix? string Context help text
 
---- Type for custom header render function
---- @alias agentic.UserConfig.HeaderRenderFn fun(parts: agentic.UserConfig.HeaderParts): string|nil
+--- @alias agentic.UserConfig.HeaderRenderFn fun(parts: agentic.HeaderParts): string|nil
 
 --- Panel names in the chat widget
 --- @alias agentic.UserConfig.PanelNames "chat"|"todos"|"code"|"files"|"input"
 
 --- User config headers - each panel can have either config parts or a custom render function
---- @alias agentic.UserConfig.Headers table<agentic.UserConfig.PanelNames, agentic.UserConfig.HeaderParts|agentic.UserConfig.HeaderRenderFn>
+--- @alias agentic.UserConfig.Headers table<agentic.UserConfig.PanelNames, agentic.UserConfig.HeaderConfig|agentic.UserConfig.HeaderRenderFn>
 
 --- Data passed to the on_prompt_submit hook
 --- @class agentic.UserConfig.PromptSubmitData
@@ -240,3 +244,4 @@ local ConfigDefault = {
 }
 
 return ConfigDefault
+
