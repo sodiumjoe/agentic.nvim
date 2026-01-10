@@ -244,4 +244,3 @@ local ConfigDefault = {
 }
 
 return ConfigDefault
-
