@@ -349,7 +349,18 @@ function ChatWidget:_bind_keymaps()
     -- Add keybindings to chat, todos, code, and files buffers to jump back to input and start insert mode
     for panel_name, bufnr in pairs(self.buf_nrs) do
         if panel_name ~= "input" then
-            for _, key in ipairs({ "a", "A", "o", "O", "i", "I", "c", "C", "x", "X" }) do
+            for _, key in ipairs({
+                "a",
+                "A",
+                "o",
+                "O",
+                "i",
+                "I",
+                "c",
+                "C",
+                "x",
+                "X",
+            }) do
                 BufHelpers.keymap_set(bufnr, "n", key, function()
                     self:move_cursor_to(
                         self.win_nrs.input,
