@@ -60,22 +60,7 @@ ChatWidget.__index = ChatWidget
 function ChatWidget:new(tab_page_id, on_submit_input)
     self = setmetatable({}, self)
 
-    -- Merge user config headers with defaults (user config takes precedence)
     self.headers = vim.deepcopy(WINDOW_HEADERS)
-    if Config.headers then
-        for panel_name, user_header in pairs(Config.headers) do
-            if type(user_header) == "function" then
-                self.headers[panel_name] = user_header
-            elseif type(user_header) == "table" then
-                local existing = self.headers[panel_name]
-                if existing and type(existing) == "table" then
-                    self.headers[panel_name] =
-                        vim.tbl_extend("force", existing, user_header) --[[@as agentic.ui.ChatWidget.HeaderParts]]
-                end
-            end
-        end
-    end
-
     self.win_nrs = {}
 
     self.on_submit_input = on_submit_input
@@ -575,27 +560,23 @@ function ChatWidget:_bind_events_to_change_headers()
                     local change_mode_key =
                         find_keymap(Config.keymaps.widget.change_mode, mode)
 
-                    if type(self.headers.chat) == "table" then
-                        if change_mode_key ~= nil then
-                            self.headers.chat.suffix = string.format(
-                                "%s: change mode",
-                                change_mode_key
-                            )
-                        else
-                            self.headers.chat.suffix = nil
-                        end
+                    if change_mode_key ~= nil then
+                        self.headers.chat.suffix = string.format(
+                            "%s: change mode",
+                            change_mode_key
+                        )
+                    else
+                        self.headers.chat.suffix = nil
                     end
 
                     local submit_key =
                         find_keymap(Config.keymaps.prompt.submit, mode)
 
-                    if type(self.headers.input) == "table" then
-                        if submit_key ~= nil then
-                            self.headers.input.suffix =
-                                string.format("%s: submit", submit_key)
-                        else
-                            self.headers.input.suffix = nil
-                        end
+                    if submit_key ~= nil then
+                        self.headers.input.suffix =
+                            string.format("%s: submit", submit_key)
+                    else
+                        self.headers.input.suffix = nil
                     end
 
                     self:render_header("chat")
@@ -643,35 +624,46 @@ function ChatWidget:render_header(window_name)
         return
     end
 
-    local header = self.headers[window_name]
-    if not header then
+    local user_header = Config.headers and Config.headers[window_name]
+    local default_header = self.headers[window_name]
+
+    if user_header == nil then
         return
     end
 
-    -- Check if it's a custom render function
-    if type(header) == "function" then
-        local default_config = WINDOW_HEADERS[window_name]
-        --- @type agentic.ui.ChatWidget.HeaderParts
-        local parts = {
-            title = default_config.title,
-            context = default_config.context,
-            suffix = default_config.suffix,
-        }
-        local custom_header = header(parts)
-        WindowDecoration.render_window_header(winid, { custom_header })
+    if type(user_header) == "function" and type(default_header) == "table" then
+        local custom_header = user_header(default_header)
+        if custom_header ~= nil then
+            WindowDecoration.render_window_header(winid, { custom_header })
+        end
         return
+    end
+
+    if type(default_header) ~= "table" then
+        return
+    end
+
+    --- @type agentic.ui.ChatWidget.HeaderParts
+    local merged_header = default_header
+
+    if type(user_header) == "table" then
+        merged_header = vim.tbl_extend(
+            "force",
+            default_header,
+            user_header
+        ) --[[@as agentic.ui.ChatWidget.HeaderParts]]
     end
 
     local opts = {
-        header.title,
+        merged_header.title,
     }
 
-    if header.context ~= nil then
-        table.insert(opts, header.context)
+    if merged_header.context ~= nil then
+        table.insert(opts, merged_header.context)
     end
 
-    if header.suffix ~= nil then
-        table.insert(opts, header.suffix)
+    if merged_header.suffix ~= nil then
+        table.insert(opts, merged_header.suffix)
     end
 
     WindowDecoration.render_window_header(winid, opts)

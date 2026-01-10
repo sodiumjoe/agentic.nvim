@@ -193,14 +193,11 @@ function SessionManager:_handle_mode_change(mode_id)
     end)
 end
 
---- Update header context if it's table-based, then render
+--- Update header context, then render
 --- @param header_name agentic.ui.ChatWidget.PanelNames
 --- @param context_value string
 function SessionManager:_update_header_context(header_name, context_value)
-    local header = self.widget.headers[header_name]
-    if type(header) == "table" then
-        header.context = context_value
-    end
+    self.widget.headers[header_name].context = context_value
     self.widget:render_header(header_name)
 end
 
