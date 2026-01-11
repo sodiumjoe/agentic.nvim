@@ -650,6 +650,17 @@ function ChatWidget:render_header(window_name)
             WindowDecoration.render_window_header(winid, {})
             return
         end
+        if type(custom_header) ~= "string" then
+            Logger.debug(
+                string.format(
+                    "Custom header function for '%s' must return string|nil, got %s",
+                    window_name,
+                    type(custom_header)
+                )
+            )
+            render_parts(dynamic_header)
+            return
+        end
         WindowDecoration.render_window_header(winid, { custom_header })
         return
     end
