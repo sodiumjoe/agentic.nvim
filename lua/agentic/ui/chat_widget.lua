@@ -670,6 +670,14 @@ function ChatWidget:render_header(window_name)
 
     if type(user_header) == "table" then
         merged_header = vim.tbl_extend("force", dynamic_header, user_header) --[[@as agentic.HeaderParts]]
+    else
+        Logger.debug(
+            string.format(
+                "Header for '%s' must be function|table|nil, got %s",
+                window_name,
+                type(user_header)
+            )
+        )
     end
 
     render_parts(merged_header)
