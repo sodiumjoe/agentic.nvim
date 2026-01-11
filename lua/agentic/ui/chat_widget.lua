@@ -615,6 +615,7 @@ function ChatWidget:render_header(window_name)
     local user_header = Config.headers and Config.headers[window_name]
     local dynamic_header = self.headers[window_name]
 
+    --- @param parts agentic.HeaderParts
     local function render_parts(parts)
         local pieces = { parts.title }
         if parts.context ~= nil then
