@@ -632,7 +632,18 @@ function ChatWidget:render_header(window_name)
     end
 
     if type(user_header) == "function" then
-        local custom_header = user_header(dynamic_header)
+        local ok, custom_header = pcall(user_header, dynamic_header)
+        if not ok then
+            Logger.debug(
+                string.format(
+                    "Error in custom header function for '%s': %s",
+                    window_name,
+                    custom_header
+                )
+            )
+            render_parts(dynamic_header)
+            return
+        end
         if custom_header == nil or custom_header == "" then
             -- Clear winbar (WindowDecoration handles empty concat by disabling winbar)
             WindowDecoration.render_window_header(winid, {})
