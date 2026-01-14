@@ -3,7 +3,7 @@
 --- @alias agentic.UserConfig.HeaderRenderFn fun(parts: agentic.HeaderParts): string|nil
 
 --- User config headers - each panel can have either config parts or a custom render function
---- @alias agentic.UserConfig.Headers table<agentic.ui.ChatWidget.PanelNames, agentic.UserConfig.HeaderConfig|agentic.UserConfig.HeaderRenderFn>
+--- @alias agentic.UserConfig.Headers table<agentic.ui.ChatWidget.PanelNames, agentic.UserConfig.HeaderConfig|agentic.UserConfig.HeaderRenderFn|nil>
 
 --- Data passed to the on_prompt_submit hook
 --- @class agentic.UserConfig.PromptSubmitData
