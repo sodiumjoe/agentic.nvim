@@ -34,6 +34,19 @@ local WINDOW_HEADERS = {
     },
 }
 
+--- @param winid integer
+--- @param parts agentic.HeaderParts
+local function render_header_parts(winid, parts)
+    local pieces = { parts.title }
+    if parts.context ~= nil then
+        table.insert(pieces, parts.context)
+    end
+    if parts.suffix ~= nil then
+        table.insert(pieces, parts.suffix)
+    end
+    WindowDecoration.render_window_header(winid, pieces)
+end
+
 --- A sidebar-style chat widget with multiple windows stacked vertically
 --- The main chat window is the first, and contains the width, the below ones adapt to its size
 --- @class agentic.ui.ChatWidget
@@ -615,20 +628,8 @@ function ChatWidget:render_header(window_name)
     local user_header = Config.headers and Config.headers[window_name]
     local dynamic_header = self.headers[window_name]
 
-    --- @param parts agentic.HeaderParts
-    local function render_parts(parts)
-        local pieces = { parts.title }
-        if parts.context ~= nil then
-            table.insert(pieces, parts.context)
-        end
-        if parts.suffix ~= nil then
-            table.insert(pieces, parts.suffix)
-        end
-        WindowDecoration.render_window_header(winid, pieces)
-    end
-
     if user_header == nil then
-        render_parts(dynamic_header)
+        render_header_parts(winid, dynamic_header)
         return
     end
 
@@ -642,7 +643,7 @@ function ChatWidget:render_header(window_name)
                     custom_header
                 )
             )
-            render_parts(dynamic_header)
+            render_header_parts(winid, dynamic_header)
             return
         end
         if custom_header == nil or custom_header == "" then
@@ -658,7 +659,7 @@ function ChatWidget:render_header(window_name)
                     type(custom_header)
                 )
             )
-            render_parts(dynamic_header)
+            render_header_parts(winid, dynamic_header)
             return
         end
         WindowDecoration.render_window_header(winid, { custom_header })
@@ -680,7 +681,7 @@ function ChatWidget:render_header(window_name)
         )
     end
 
-    render_parts(merged_header)
+    render_header_parts(winid, merged_header)
 end
 
 function ChatWidget:close_code_window()
