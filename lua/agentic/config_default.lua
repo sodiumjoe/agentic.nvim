@@ -1,16 +1,5 @@
 --- @alias agentic.UserConfig.ProviderName "claude-acp" | "gemini-acp" | "codex-acp" | "opencode-acp" | "cursor-acp"
 
---- User-facing header configuration for table-based headers
---- @class agentic.UserConfig.HeaderConfig
---- @field title? string Override default title
---- @field suffix? string Override default suffix
-
---- Runtime header parts with dynamic context (defined here to avoid circular dependency)
---- @class agentic.HeaderParts
---- @field title string Main header text
---- @field context? string Dynamic info (managed internally)
---- @field suffix? string Context help text
-
 --- @alias agentic.UserConfig.HeaderRenderFn fun(parts: agentic.HeaderParts): string|nil
 
 --- Panel names in the chat widget
