@@ -636,7 +636,7 @@ function ChatWidget:render_header(window_name)
     if type(user_header) == "function" then
         local ok, custom_header = pcall(user_header, dynamic_header)
         if not ok then
-            Logger.debug(
+            Logger.notify(
                 string.format(
                     "Error in custom header function for '%s': %s",
                     window_name,
@@ -652,7 +652,7 @@ function ChatWidget:render_header(window_name)
             return
         end
         if type(custom_header) ~= "string" then
-            Logger.debug(
+            Logger.notify(
                 string.format(
                     "Custom header function for '%s' must return string|nil, got %s",
                     window_name,
@@ -672,7 +672,7 @@ function ChatWidget:render_header(window_name)
     if type(user_header) == "table" then
         merged_header = vim.tbl_extend("force", dynamic_header, user_header) --[[@as agentic.HeaderParts]]
     else
-        Logger.debug(
+        Logger.notify(
             string.format(
                 "Header for '%s' must be function|table|nil, got %s",
                 window_name,
