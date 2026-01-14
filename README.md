@@ -227,12 +227,15 @@ a table configuration or a custom render function.
 
 ```lua
 {
-  headers = {
-    chat = {
-      title = "󰻞 My Custom Chat Title",
-      suffix = "<S-Tab>: change mode",
+  "carlos-algms/agentic.nvim",
+  opts = {
+    headers = {
+      chat = {
+        title = "󰻞 My Custom Chat Title",
+        suffix = "<S-Tab>: change mode",
+      },
+      -- ...
     },
-  -- ...
   },
 }
 ```
@@ -244,17 +247,20 @@ header parts:
 
 ```lua
 {
-  headers = {
-    chat = function(parts)
-      local header = parts.title
-      if parts.context then
-        header = header .. " [" .. parts.context .. "]"
-      end
-      if parts.suffix then
-        header = header .. " • " .. parts.suffix
-      end
-      return header
-    end,
+  "carlos-algms/agentic.nvim",
+  opts = {
+    headers = {
+      chat = function(parts)
+        local header = parts.title
+        if parts.context then
+          header = header .. " [" .. parts.context .. "]"
+        end
+        if parts.suffix then
+          header = header .. " • " .. parts.suffix
+        end
+        return header
+      end,
+    },
   },
 }
 ```
