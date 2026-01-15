@@ -622,7 +622,7 @@ end
 --- @param window_name agentic.ui.ChatWidget.PanelNames
 function ChatWidget:render_header(window_name)
     local winid = self.win_nrs[window_name]
-    if not winid then
+    if not winid or not vim.api.nvim_win_is_valid(winid) then
         return
     end
 
