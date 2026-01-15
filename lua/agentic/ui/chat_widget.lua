@@ -628,10 +628,11 @@ end
 
 --- @param window_name agentic.ui.ChatWidget.PanelNames
 function ChatWidget:render_header(window_name)
-    local winid = self.win_nrs[window_name]
-    if not winid or not vim.api.nvim_win_is_valid(winid) then
-        return
-    end
+    vim.schedule(function()
+        local winid = self.win_nrs[window_name]
+        if not winid or not vim.api.nvim_win_is_valid(winid) then
+            return
+        end
 
     local user_header = Config.headers and Config.headers[window_name]
     local dynamic_header = self.headers[window_name]
@@ -670,7 +671,8 @@ function ChatWidget:render_header(window_name)
         merged_header = vim.tbl_extend("force", dynamic_header, user_header) --[[@as agentic.HeaderParts]]
     end
 
-    render_parts(merged_header)
+        render_parts(merged_header)
+    end)
 end
 
 --- Close all windows and clear state (for layout switching)
