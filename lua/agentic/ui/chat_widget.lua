@@ -11,7 +11,7 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 --- @field suffix? string Override default suffix
 
 --- Runtime header parts with dynamic context
---- @class agentic.HeaderParts
+--- @class agentic.ui.ChatWidget.HeaderParts
 --- @field title string Main header text
 --- @field context? string Dynamic info (managed internally)
 --- @field suffix? string Context help text
@@ -19,7 +19,7 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 --- @alias agentic.ui.ChatWidget.BufNrs table<agentic.ui.ChatWidget.PanelNames, integer>
 --- @alias agentic.ui.ChatWidget.WinNrs table<agentic.ui.ChatWidget.PanelNames, integer|nil>
 
---- @alias agentic.ui.ChatWidget.Headers table<agentic.ui.ChatWidget.PanelNames, agentic.HeaderParts>
+--- @alias agentic.ui.ChatWidget.Headers table<agentic.ui.ChatWidget.PanelNames, agentic.ui.ChatWidget.HeaderParts>
 
 --- Options for controlling widget display behavior
 --- @class agentic.ui.ChatWidget.ShowOpts
@@ -46,7 +46,7 @@ local WINDOW_HEADERS = {
 }
 
 --- @param winid integer
---- @param parts agentic.HeaderParts
+--- @param parts agentic.ui.ChatWidget.HeaderParts
 local function render_header_parts(winid, parts)
     local pieces = { parts.title }
     if parts.context ~= nil then
@@ -677,11 +677,11 @@ function ChatWidget:render_header(window_name)
         return
     end
 
-    --- @type agentic.HeaderParts
+    --- @type agentic.ui.ChatWidget.HeaderParts
     local merged_header = dynamic_header
 
     if type(user_header) == "table" then
-        merged_header = vim.tbl_extend("force", dynamic_header, user_header) --[[@as agentic.HeaderParts]]
+        merged_header = vim.tbl_extend("force", dynamic_header, user_header) --[[@as agentic.ui.ChatWidget.HeaderParts]]
     else
         Logger.notify(
             string.format(

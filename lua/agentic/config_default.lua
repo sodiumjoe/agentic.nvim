@@ -1,6 +1,6 @@
 --- @alias agentic.UserConfig.ProviderName "claude-acp" | "gemini-acp" | "codex-acp" | "opencode-acp" | "cursor-acp"
 
---- @alias agentic.UserConfig.HeaderRenderFn fun(parts: agentic.HeaderParts): string|nil
+--- @alias agentic.UserConfig.HeaderRenderFn fun(parts: agentic.ui.ChatWidget.HeaderParts): string|nil
 
 --- User config headers - each panel can have either config parts or a custom render function
 --- @alias agentic.UserConfig.Headers table<agentic.ui.ChatWidget.PanelNames, agentic.UserConfig.HeaderConfig|agentic.UserConfig.HeaderRenderFn|nil>
