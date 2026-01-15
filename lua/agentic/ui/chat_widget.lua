@@ -5,11 +5,6 @@ local WindowDecoration = require("agentic.ui.window_decoration")
 
 --- @alias agentic.ui.ChatWidget.PanelNames "chat"|"todos"|"code"|"files"|"input"
 
---- User-facing header configuration for table-based headers
---- @class agentic.UserConfig.HeaderConfig
---- @field title? string Override default title
---- @field suffix? string Override default suffix
-
 --- Runtime header parts with dynamic context
 --- @class agentic.ui.ChatWidget.HeaderParts
 --- @field title string Main header text
