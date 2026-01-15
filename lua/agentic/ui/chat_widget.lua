@@ -73,90 +73,78 @@ function ChatWidget:show(opts)
     local should_focus = options.focus_prompt == nil and true
         or options.focus_prompt
 
-    if
-        not self.win_nrs.chat
-        or not vim.api.nvim_win_is_valid(self.win_nrs.chat)
-    then
-        self.win_nrs.chat = self:_open_win(
-            self.buf_nrs.chat,
-            false,
-            {
-                -- Only the top most needs a fixed width, others adapt to available space
-                width = self._calculate_width(Config.windows.width),
-            },
-            "chat",
-            {
-                winfixheight = false,
-                scrolloff = 4, -- Keep 4 lines visible above/below cursor (keeps animation visible)
-            }
-        )
+    self:_get_or_create_window(
+        "chat",
+        self.buf_nrs.chat,
+        false,
+        {
+            width = self._calculate_width(Config.windows.width),
+        },
+        {
+            winfixheight = false,
+            scrolloff = 4,
+        }
+    )
 
-        self:render_header("chat")
-    end
-
-    if
-        not self.win_nrs.input
-        or not vim.api.nvim_win_is_valid(self.win_nrs.input)
-    then
-        self.win_nrs.input = self:_open_win(self.buf_nrs.input, true, {
+    self:_get_or_create_window(
+        "input",
+        self.buf_nrs.input,
+        true,
+        {
             win = self.win_nrs.chat,
             split = "below",
             height = Config.windows.input.height,
             fixed = true,
-        }, "input", {})
+        },
+        {}
+    )
 
-        self:render_header("input")
+    if not BufHelpers.is_buffer_empty(self.buf_nrs.code) then
+        self:_get_or_create_window(
+            "code",
+            self.buf_nrs.code,
+            false,
+            {
+                win = self.win_nrs.chat,
+                split = "below",
+                height = 15,
+            },
+            {}
+        )
     end
 
-    if
-        (
-            not self.win_nrs.code
-            or not vim.api.nvim_win_is_valid(self.win_nrs.code)
-        ) and not BufHelpers.is_buffer_empty(self.buf_nrs.code)
-    then
-        self.win_nrs.code = self:_open_win(self.buf_nrs.code, false, {
-            win = self.win_nrs.chat,
-            split = "below",
-            height = 15,
-        }, "code", {})
-
-        self:render_header("code")
-    end
-
-    if
-        (
-            not self.win_nrs.files
-            or not vim.api.nvim_win_is_valid(self.win_nrs.files)
-        ) and not BufHelpers.is_buffer_empty(self.buf_nrs.files)
-    then
-        self.win_nrs.files = self:_open_win(self.buf_nrs.files, false, {
-            win = self.win_nrs.input,
-            split = "above",
-            height = 5,
-        }, "files", {})
-
-        self:render_header("files")
+    if not BufHelpers.is_buffer_empty(self.buf_nrs.files) then
+        self:_get_or_create_window(
+            "files",
+            self.buf_nrs.files,
+            false,
+            {
+                win = self.win_nrs.input,
+                split = "above",
+                height = 5,
+            },
+            {}
+        )
     end
 
     if
         Config.windows.todos.display
-        and (not self.win_nrs.todos or not vim.api.nvim_win_is_valid(
-            self.win_nrs.todos
-        ))
         and not BufHelpers.is_buffer_empty(self.buf_nrs.todos)
     then
         local line_count = vim.api.nvim_buf_line_count(self.buf_nrs.todos)
-
-        -- Add 1 for visual padding to prevent last line cutoff because of the header
         local height = math.min(line_count + 1, Config.windows.todos.max_height)
 
-        self.win_nrs.todos = self:_open_win(self.buf_nrs.todos, false, {
-            win = self.win_nrs.chat,
-            split = "below",
-            height = height,
-        }, "todos", {})
-
-        self:render_header("todos")
+        self:_get_or_create_window(
+            "todos",
+            self.buf_nrs.todos,
+            false,
+            {
+                win = self.win_nrs.chat,
+                split = "below",
+                height = height,
+            },
+            {}
+        )
     end
 
     if should_focus then
@@ -484,6 +472,25 @@ function ChatWidget:_create_new_buf(opts)
     end
 
     return bufnr
+end
+
+--- Get existing valid window or create new one
+--- @param panel_name agentic.ui.ChatWidget.PanelNames
+--- @param bufnr integer
+--- @param enter boolean
+--- @param open_opts vim.api.keyset.win_config
+--- @param win_opts? table<string, any>
+--- @return integer winid
+function ChatWidget:_get_or_create_window(panel_name, bufnr, enter, open_opts, win_opts)
+    local cached_winid = self.win_nrs[panel_name]
+    if cached_winid and vim.api.nvim_win_is_valid(cached_winid) then
+        return cached_winid
+    end
+
+    local new_winid = self:_open_win(bufnr, enter, open_opts, panel_name, win_opts or {})
+    self.win_nrs[panel_name] = new_winid
+    self:render_header(panel_name)
+    return new_winid
 end
 
 --- @param bufnr integer
