@@ -1,8 +1,10 @@
 ---@diagnostic disable: assign-type-mismatch, need-check-nil, undefined-field
+local assert = require("tests.helpers.assert")
+local spy = require("tests.helpers.spy")
+
 describe("agentic.ui.ChatWidget", function()
     --- @type agentic.ui.ChatWidget
     local ChatWidget
-    local spy = require("luassert.spy")
 
     ChatWidget = require("agentic.ui.chat_widget")
 
@@ -153,11 +155,6 @@ describe("agentic.ui.ChatWidget", function()
             -- Focus input window and enter insert mode
             vim.api.nvim_set_current_win(widget.win_nrs.input)
             vim.cmd("startinsert")
-
-            -- Wait for mode change to take effect
-            vim.wait(100, function()
-                return vim.fn.mode() == "i"
-            end)
 
             widget:hide()
 

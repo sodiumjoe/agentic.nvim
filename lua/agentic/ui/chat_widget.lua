@@ -106,6 +106,7 @@ function ChatWidget:show(opts)
             "chat",
             {
                 winfixheight = false,
+                winfixwidth = true,
                 scrolloff = 4, -- Keep 4 lines visible above/below cursor (keeps animation visible)
             }
         )
@@ -418,14 +419,29 @@ function ChatWidget:_bind_keymaps()
         end
     end
 
-    -- Add keybindings to chat buffer to jump back to input and start insert mode
-    for _, key in ipairs({ "a", "A", "o", "O", "i", "I", "c", "C", "x", "X" }) do
-        BufHelpers.keymap_set(self.buf_nrs.chat, "n", key, function()
-            self:move_cursor_to(
-                self.win_nrs.input,
-                BufHelpers.start_insert_on_last_char
-            )
-        end)
+    -- Add keybindings to chat, todos, code, and files buffers to jump back to input and start insert mode
+    for panel_name, bufnr in pairs(self.buf_nrs) do
+        if panel_name ~= "input" then
+            for _, key in ipairs({
+                "a",
+                "A",
+                "o",
+                "O",
+                "i",
+                "I",
+                "c",
+                "C",
+                "x",
+                "X",
+            }) do
+                BufHelpers.keymap_set(bufnr, "n", key, function()
+                    self:move_cursor_to(
+                        self.win_nrs.input,
+                        BufHelpers.start_insert_on_last_char
+                    )
+                end)
+            end
+        end
     end
 end
 
@@ -481,7 +497,6 @@ function ChatWidget:_create_new_buf(opts)
         bufhidden = "hide",
         buflisted = false,
         modifiable = false,
-        syntax = "markdown",
     }, opts)
 
     for key, value in pairs(config) do
