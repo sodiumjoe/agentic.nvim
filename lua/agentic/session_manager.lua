@@ -64,6 +64,7 @@ end
 --- @field _is_restoring_session boolean
 --- @field _connection_error boolean
 --- @field _session_ready_callbacks fun()[]
+--- @field _generation_id integer
 local SessionManager = {}
 SessionManager.__index = SessionManager
 
@@ -118,6 +119,7 @@ function SessionManager:new(tab_page_id)
         _connection_error = false,
         history_to_send = nil,
         _session_ready_callbacks = {},
+        _generation_id = 0,
     }, self)
 
     local agent = AgentInstance.get_instance(Config.provider, function(_client)
@@ -599,6 +601,7 @@ function SessionManager:_handle_input_submit(input_text)
 
     -- If already generating, interrupt current generation and continue
     if self.is_generating then
+        self._generation_id = self._generation_id + 1
         self.agent:stop_generation(self.session_id)
         self.permission_manager:clear()
         self.is_generating = false
@@ -774,12 +777,18 @@ function SessionManager:_handle_input_submit(input_text)
     local session_id = self.session_id
     local tab_page_id = self.tab_page_id
 
+    self._generation_id = self._generation_id + 1
+    local generation_id = self._generation_id
     self.is_generating = true
 
     self.agent:send_prompt(self.session_id, prompt, function(response, err)
         vim.schedule(function()
             -- Guard: skip stale response if session changed (cancel/restore/new)
-            if self.session_id ~= session_id then
+            -- or generation was interrupted by a new submit
+            if
+                self.session_id ~= session_id
+                or self._generation_id ~= generation_id
+            then
                 return
             end
 
