@@ -254,6 +254,10 @@ function MessageWriter:write_message_chunk(update)
         -- Different message type, add newline before appending, to create visual separation
         -- only for thought -> message
         text = "\n\n" .. text
+    elseif self._last_message_type == "tool_call" then
+        -- After a tool call block, start text on a new line so it doesn't
+        -- run into the trailing blank lines of the tool call block
+        text = "\n" .. text
     end
 
     self._last_message_type = update.sessionUpdate
@@ -387,6 +391,7 @@ function MessageWriter:write_tool_call_block(tool_call_block)
     self:_clear_thinking_state()
     self:_auto_scroll(self.bufnr)
     self:_maybe_write_sender_header("tool_call")
+    self._last_message_type = "tool_call"
 
     self:_with_modifiable_and_notify_change(function(bufnr)
         local kind = tool_call_block.kind
