@@ -387,6 +387,9 @@ local ConfigDefault = {
     },
     -- stylua: ignore end
 
+    --- @type "boxed" | "header_outside" | "pipe"
+    border_style = "boxed",
+
     status_icons = {
         pending = "󰔛",
         in_progress = "󰔛",

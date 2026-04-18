@@ -2,6 +2,7 @@ local Config = require("agentic.config")
 local BufHelpers = require("agentic.utils.buf_helpers")
 local BufferGuard = require("agentic.ui.buffer_guard")
 local DiffPreview = require("agentic.ui.diff_preview")
+local ExtmarkBlock = require("agentic.utils.extmark_block")
 local Logger = require("agentic.utils.logger")
 local WindowDecoration = require("agentic.ui.window_decoration")
 local WidgetLayout = require("agentic.ui.widget_layout")
@@ -185,6 +186,9 @@ function ChatWidget:clear()
                 )
             end
         end)
+        if name == "chat" then
+            ExtmarkBlock.clear_cache(bufnr)
+        end
     end
 end
 
