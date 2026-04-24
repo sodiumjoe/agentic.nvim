@@ -107,10 +107,6 @@ local function open_win(bufnr, enter, opts, window_name, win_opts)
     if window_name == "chat" then
         merged_win_opts.statuscolumn =
             "%{%v:lua.require'agentic.utils.extmark_block'.statuscolumn()%}"
-        merged_win_opts.number = false
-        merged_win_opts.relativenumber = false
-        merged_win_opts.signcolumn = "no"
-        merged_win_opts.foldcolumn = "0"
     end
 
     for name, value in pairs(merged_win_opts) do
