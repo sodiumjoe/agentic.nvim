@@ -574,7 +574,7 @@ function MessageWriter:_build_header_line(tool_call_block)
     -- nvim_buf_set_lines doesn't accept array items with embedded newlines
     argument = argument:gsub("\n", "\\n")
 
-    return string.format(" %s(%s) ", kind, argument)
+    return string.format("%s(%s)", kind, argument)
 end
 
 --- @param tool_call_block agentic.ui.MessageWriter.ToolCallBlock
@@ -1053,7 +1053,7 @@ function MessageWriter:_apply_status_footer(footer_line, status)
 
     vim.api.nvim_buf_set_extmark(self.bufnr, NS_STATUS, footer_line, 0, {
         virt_text = {
-            { string.format(" %s %s ", icon, status), hl_group },
+            { string.format("%s %s", icon, status), hl_group },
         },
         virt_text_pos = "overlay",
     })
