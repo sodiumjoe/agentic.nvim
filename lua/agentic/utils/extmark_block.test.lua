@@ -26,57 +26,30 @@ describe("extmark_block", function()
 
             it("returns blank for line before block", function()
                 local ranges = {
-                    { start_row = 10, end_row = 20, style = "pipe" },
+                    { start_row = 10, end_row = 20 },
                 }
                 assert.equal(blank, glyph(ranges, 5))
             end)
 
             it("returns blank for line after block", function()
                 local ranges = {
-                    { start_row = 10, end_row = 20, style = "pipe" },
+                    { start_row = 10, end_row = 20 },
                 }
                 assert.equal(blank, glyph(ranges, 25))
             end)
 
             it("returns blank between blocks", function()
                 local ranges = {
-                    { start_row = 5, end_row = 10, style = "pipe" },
-                    { start_row = 20, end_row = 25, style = "pipe" },
+                    { start_row = 5, end_row = 10 },
+                    { start_row = 20, end_row = 25 },
                 }
                 assert.equal(blank, glyph(ranges, 15))
             end)
         end)
 
-        describe("pipe style", function()
+        describe("block glyphs", function()
             local ranges = {
-                { start_row = 10, end_row = 15, style = "pipe" },
-            }
-
-            it("returns pipe on start row", function()
-                assert.equal(pipe, glyph(ranges, 10))
-            end)
-
-            it("returns pipe on body row", function()
-                assert.equal(pipe, glyph(ranges, 12))
-            end)
-
-            it("returns corner_bottom on end row", function()
-                assert.equal(corner_bottom, glyph(ranges, 15))
-            end)
-
-            it("returns pipe on end row continuation", function()
-                assert.equal(pipe, glyph(ranges, 15, 1))
-            end)
-
-            it("returns pipe on soft-wrapped continuation", function()
-                assert.equal(pipe, glyph(ranges, 12, 1))
-                assert.equal(pipe, glyph(ranges, 12, 2))
-            end)
-        end)
-
-        describe("boxed style", function()
-            local ranges = {
-                { start_row = 10, end_row = 15, style = "boxed" },
+                { start_row = 10, end_row = 15 },
             }
 
             it("returns corner_top on start row", function()
@@ -98,42 +71,17 @@ describe("extmark_block", function()
             it("returns pipe on end row continuation", function()
                 assert.equal(pipe, glyph(ranges, 15, 1))
             end)
-        end)
 
-        describe("header_outside style", function()
-            local ranges = {
-                { start_row = 10, end_row = 15, style = "header_outside" },
-            }
-
-            it("returns blank on header row", function()
-                assert.equal(blank, glyph(ranges, 10))
-            end)
-
-            it("returns corner_top on first body row", function()
-                assert.equal(corner_top, glyph(ranges, 11))
-            end)
-
-            it("returns pipe on first body row continuation", function()
-                assert.equal(pipe, glyph(ranges, 11, 1))
-            end)
-
-            it("returns pipe on body row", function()
-                assert.equal(pipe, glyph(ranges, 13))
-            end)
-
-            it("returns corner_bottom on end row", function()
-                assert.equal(corner_bottom, glyph(ranges, 15))
-            end)
-
-            it("returns pipe on end row continuation", function()
-                assert.equal(pipe, glyph(ranges, 15, 1))
+            it("returns pipe on soft-wrapped continuation", function()
+                assert.equal(pipe, glyph(ranges, 12, 1))
+                assert.equal(pipe, glyph(ranges, 12, 2))
             end)
         end)
 
         describe("multiple blocks", function()
             local ranges = {
-                { start_row = 5, end_row = 10, style = "pipe" },
-                { start_row = 20, end_row = 25, style = "boxed" },
+                { start_row = 5, end_row = 10 },
+                { start_row = 20, end_row = 25 },
             }
 
             it("finds first block", function()
@@ -150,22 +98,12 @@ describe("extmark_block", function()
         end)
 
         describe("single-line block", function()
-            it("boxed: returns corner_top (start == end, virtnum 0)", function()
+            it("returns corner_top (start == end, virtnum 0)", function()
                 local ranges = {
-                    { start_row = 5, end_row = 5, style = "boxed" },
+                    { start_row = 5, end_row = 5 },
                 }
                 assert.equal(corner_top, glyph(ranges, 5))
             end)
-
-            it(
-                "pipe: returns corner_bottom (start == end, virtnum 0)",
-                function()
-                    local ranges = {
-                        { start_row = 5, end_row = 5, style = "pipe" },
-                    }
-                    assert.equal(corner_bottom, glyph(ranges, 5))
-                end
-            )
         end)
     end)
 
@@ -183,13 +121,12 @@ describe("extmark_block", function()
             vim.api.nvim_buf_set_extmark(buf, ns, 5, 0, { end_row = 8 })
             vim.api.nvim_buf_set_extmark(buf, ns, 0, 0, { end_row = 2 })
 
-            ExtmarkBlock.update_cache(buf, ns, "pipe")
+            ExtmarkBlock.update_cache(buf, ns)
             local cache = ExtmarkBlock._block_cache[buf]
 
             assert.equal(2, #cache)
             assert.equal(0, cache[1].start_row)
             assert.equal(2, cache[1].end_row)
-            assert.equal("pipe", cache[1].style)
             assert.equal(5, cache[2].start_row)
             assert.equal(8, cache[2].end_row)
 
@@ -201,7 +138,7 @@ describe("extmark_block", function()
         it("removes cache for buffer", function()
             local bufnr = vim.api.nvim_get_current_buf()
             ExtmarkBlock._block_cache[bufnr] = {
-                { start_row = 0, end_row = 5, style = "pipe" },
+                { start_row = 0, end_row = 5 },
             }
             ExtmarkBlock.clear_cache(bufnr)
             assert.is_nil(ExtmarkBlock._block_cache[bufnr])

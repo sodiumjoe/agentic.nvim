@@ -419,7 +419,7 @@ function MessageWriter:write_tool_call_block(tool_call_block)
         self:_apply_header_highlight(start_row, tool_call_block.status)
         self:_apply_status_footer(end_row, tool_call_block.status)
 
-        ExtmarkBlock.update_cache(bufnr, NS_TOOL_BLOCKS, Config.border_style)
+        ExtmarkBlock.update_cache(bufnr, NS_TOOL_BLOCKS)
 
         self:_append_lines({ "", "" })
     end)
@@ -559,7 +559,7 @@ function MessageWriter:update_tool_call_block(tool_call_block)
             tracker.status
         )
 
-        ExtmarkBlock.update_cache(bufnr, NS_TOOL_BLOCKS, Config.border_style)
+        ExtmarkBlock.update_cache(bufnr, NS_TOOL_BLOCKS)
     end)
 end
 

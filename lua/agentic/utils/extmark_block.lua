@@ -9,15 +9,14 @@ local GLYPHS = {
 local ExtmarkBlock = {}
 
 --- Per-buffer cache of block ranges for statuscolumn rendering.
---- Maps bufnr -> sorted array of {start_row, end_row, style}.
---- @type table<integer, {start_row: integer, end_row: integer, style: string}[]>
+--- Maps bufnr -> sorted array of {start_row, end_row}.
+--- @type table<integer, {start_row: integer, end_row: integer}[]>
 ExtmarkBlock._block_cache = {}
 
 --- Update the block cache for a buffer by reading NS_TOOL_BLOCKS extmarks.
 --- @param bufnr integer
 --- @param ns_id integer The NS_TOOL_BLOCKS namespace
---- @param style string The border_style value
-function ExtmarkBlock.update_cache(bufnr, ns_id, style)
+function ExtmarkBlock.update_cache(bufnr, ns_id)
     local marks =
         vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, { details = true })
     local ranges = {}
@@ -25,7 +24,6 @@ function ExtmarkBlock.update_cache(bufnr, ns_id, style)
         ranges[#ranges + 1] = {
             start_row = m[2],
             end_row = m[4].end_row,
-            style = style,
         }
     end
     table.sort(ranges, function(a, b)
@@ -41,9 +39,9 @@ function ExtmarkBlock.clear_cache(bufnr)
 end
 
 --- Find the block range containing a 0-indexed line number using binary search.
---- @param ranges {start_row: integer, end_row: integer, style: string}[]
+--- @param ranges {start_row: integer, end_row: integer}[]
 --- @param lnum integer 0-indexed line number
---- @return {start_row: integer, end_row: integer, style: string}|nil
+--- @return {start_row: integer, end_row: integer}|nil
 local function find_block(ranges, lnum)
     local lo, hi = 1, #ranges
     while lo <= hi do
@@ -68,7 +66,7 @@ local CORNER_BOTTOM = HL .. GLYPHS.BOTTOM_LEFT .. GLYPHS.HORIZONTAL .. RESET
 local BLANK = "  "
 
 --- Compute the glyph for a given line within a set of block ranges.
---- @param ranges {start_row: integer, end_row: integer, style: string}[]
+--- @param ranges {start_row: integer, end_row: integer}[]
 --- @param lnum integer 0-indexed buffer line
 --- @param virtnum integer 0 = first screen line, >0 = continuation
 --- @return string
@@ -78,30 +76,12 @@ function ExtmarkBlock.glyph(ranges, lnum, virtnum)
         return BLANK
     end
 
-    if r.style == "header_outside" then
-        if lnum == r.start_row then
-            return BLANK
-        elseif lnum == r.start_row + 1 and virtnum == 0 then
-            return CORNER_TOP
-        elseif lnum == r.end_row and virtnum == 0 then
-            return CORNER_BOTTOM
-        else
-            return PIPE
-        end
-    elseif r.style == "boxed" then
-        if lnum == r.start_row and virtnum == 0 then
-            return CORNER_TOP
-        elseif lnum == r.end_row and virtnum == 0 then
-            return CORNER_BOTTOM
-        else
-            return PIPE
-        end
-    else -- "pipe"
-        if lnum == r.end_row and virtnum == 0 then
-            return CORNER_BOTTOM
-        else
-            return PIPE
-        end
+    if lnum == r.start_row and virtnum == 0 then
+        return CORNER_TOP
+    elseif lnum == r.end_row and virtnum == 0 then
+        return CORNER_BOTTOM
+    else
+        return PIPE
     end
 end
 
