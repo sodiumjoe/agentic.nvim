@@ -574,7 +574,7 @@ function MessageWriter:_build_header_line(tool_call_block)
     -- nvim_buf_set_lines doesn't accept array items with embedded newlines
     argument = argument:gsub("\n", "\\n")
 
-    return string.format("%s(%s)", kind, argument)
+    return string.format(" %s(%s) ", kind, argument)
 end
 
 --- @param tool_call_block agentic.ui.MessageWriter.ToolCallBlock
