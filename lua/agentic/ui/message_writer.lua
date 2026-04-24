@@ -1053,7 +1053,7 @@ function MessageWriter:_apply_status_footer(footer_line, status)
 
     vim.api.nvim_buf_set_extmark(self.bufnr, NS_STATUS, footer_line, 0, {
         virt_text = {
-            { string.format("%s %s", icon, status), hl_group },
+            { string.format(" %s %s", icon, status), hl_group },
         },
         virt_text_pos = "overlay",
     })
