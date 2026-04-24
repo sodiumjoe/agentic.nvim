@@ -217,6 +217,9 @@ function ChatWidget:destroy()
     end
 
     for name, bufnr in pairs(self.buf_nrs) do
+        if name == "chat" then
+            ExtmarkBlock.clear_cache(bufnr)
+        end
         self.buf_nrs[name] = nil
         local ok = pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
         if not ok then
