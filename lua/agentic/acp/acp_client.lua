@@ -333,6 +333,15 @@ end
 --- @param params table|nil
 --- @param callback fun(result: table|nil, err: agentic.acp.ACPError|nil)
 function ACPClient:_send_request(method, params, callback)
+    if self.state == "disconnected" or self.state == "error" then
+        local err =
+            self:__create_error(self.ERROR_CODES.TRANSPORT_ERROR, self.state)
+        vim.schedule(function()
+            pcall(callback, nil, err)
+        end)
+        return
+    end
+
     local id = self:_next_id()
     local message = {
         jsonrpc = "2.0",

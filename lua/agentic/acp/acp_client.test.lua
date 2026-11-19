@@ -567,6 +567,42 @@ describe("ACPClient", function()
         end)
     end)
 
+    describe("_send_request while disconnected", function()
+        it(
+            "fails a request sent after the connection is lost instead of dropping it",
+            function()
+                local client = create_ready_client(LOAD_CAPS)
+                schedule_stub = spy.stub(vim, "schedule")
+                schedule_stub:invokes(function(fn)
+                    fn()
+                end)
+                --- @diagnostic disable-next-line: invisible
+                client:_set_state("disconnected")
+                transport_send_stub:reset()
+
+                --- @type table|string|nil
+                local result = "unset"
+                --- @type agentic.acp.ACPError|nil
+                local err
+                --- @diagnostic disable-next-line: invisible
+                client:_send_request(
+                    "session/prompt",
+                    { sessionId = "s1" },
+                    function(r, e)
+                        result, err = r, e
+                    end
+                )
+
+                assert.equal(nil, result)
+                assert.equal(
+                    client.ERROR_CODES.TRANSPORT_ERROR,
+                    err and err.code
+                )
+                assert.equal(0, transport_send_stub.call_count)
+            end
+        )
+    end)
+
     describe("load_session", function()
         it("returns the standard load response on success", function()
             local client = create_ready_client(LOAD_CAPS)
