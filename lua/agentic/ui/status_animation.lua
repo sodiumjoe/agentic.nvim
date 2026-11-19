@@ -39,6 +39,17 @@ end
 
 --- @param state agentic.Theme.SpinnerState
 function StatusAnimation:start(state)
+    local handle = self._next_frame_handle
+    if
+        self._state == state
+        and handle
+        and not handle:is_closing()
+        and handle:is_active()
+    then
+        self:_move_to_last_line()
+        return
+    end
+
     self:stop()
 
     -- `stop` cannot un-queue an already-fired `vim.defer_fn` callback.
@@ -75,6 +86,33 @@ function StatusAnimation:stop()
     self._extmark_id = nil
 end
 
+function StatusAnimation:_move_to_last_line()
+    if not self._extmark_id or not vim.api.nvim_buf_is_valid(self._bufnr) then
+        return
+    end
+
+    local mark = vim.api.nvim_buf_get_extmark_by_id(
+        self._bufnr,
+        NS_ANIMATION,
+        self._extmark_id,
+        { details = true }
+    )
+    if not mark[3] then
+        return
+    end
+
+    local last = math.max(0, vim.api.nvim_buf_line_count(self._bufnr) - 1)
+    if mark[1] == last then
+        return
+    end
+
+    vim.api.nvim_buf_set_extmark(self._bufnr, NS_ANIMATION, last, 0, {
+        id = self._extmark_id,
+        virt_lines = mark[3].virt_lines,
+        virt_lines_above = false,
+    })
+end
+
 --- @param epoch number Epoch this frame was scheduled with
 function StatusAnimation:_render_frame(epoch)
     if epoch ~= self._epoch then
@@ -95,8 +133,7 @@ function StatusAnimation:_render_frame(epoch)
     local display_text = string.format(" %s %s ", char, self._state)
 
     local hl_group = Theme.get_spinner_hl_group(self._state)
-    local lines = vim.api.nvim_buf_get_lines(self._bufnr, 0, -1, false)
-    local line_num = math.max(0, #lines - 1)
+    local line_num = math.max(0, vim.api.nvim_buf_line_count(self._bufnr) - 1)
 
     local virt_text = { { display_text, hl_group } }
 

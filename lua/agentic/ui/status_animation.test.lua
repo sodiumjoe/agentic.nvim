@@ -151,6 +151,42 @@ describe("agentic.ui.StatusAnimation", function()
     end)
 
     describe("rendering", function()
+        it(
+            "keeps the current frame when started again with the same state",
+            function()
+                local chars = require("agentic.config").spinner_chars.generating
+                animation:start("generating")
+                local superseded = animation._next_frame_handle
+                animation:_render_frame(animation._epoch)
+                superseded:stop()
+                superseded:close()
+
+                animation:start("generating")
+
+                local rendered = vim.inspect(animation_chunks())
+                assert.equal(true, rendered:find(chars[2], 1, true) ~= nil)
+            end
+        )
+
+        it(
+            "moves the running spinner to the new last line on a same-state start",
+            function()
+                animation:start("generating")
+                local handle = animation._next_frame_handle
+
+                vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "x", "y" })
+                animation:start("generating")
+
+                local marks = extmarks()
+                assert.equal(1, #marks)
+                assert.equal(
+                    vim.api.nvim_buf_line_count(bufnr) - 1,
+                    marks[1][2]
+                )
+                assert.equal(handle, animation._next_frame_handle)
+            end
+        )
+
         it("renders an extmark on start", function()
             animation:start("generating")
 
