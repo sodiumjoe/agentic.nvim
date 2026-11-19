@@ -503,6 +503,37 @@ describe("BufHelpers", function()
             assert.is_false(BufHelpers.is_buffer_empty(bufnr))
             vim.api.nvim_buf_delete(bufnr, { force = true })
         end)
+
+        for _, lnum in ipairs({ 1, 256, 257, 512, 513, 600 }) do
+            it("finds text on line " .. lnum .. " among blank lines", function()
+                local bufnr = vim.api.nvim_create_buf(false, true)
+                local lines = {}
+                for i = 1, 600 do
+                    lines[i] = "   "
+                end
+                lines[lnum] = "x"
+                vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+
+                local found = BufHelpers.is_buffer_empty(bufnr)
+                vim.api.nvim_buf_delete(bufnr, { force = true })
+
+                assert.equal(false, found)
+            end)
+        end
+
+        it("reports a buffer of only whitespace lines as empty", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            local lines = {}
+            for i = 1, 600 do
+                lines[i] = " \t "
+            end
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+
+            local blank = BufHelpers.is_buffer_empty(bufnr)
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+
+            assert.equal(true, blank)
+        end)
     end)
 
     describe("find_visible_win", function()

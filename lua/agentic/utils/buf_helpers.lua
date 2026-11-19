@@ -1,5 +1,7 @@
 local Logger = require("agentic.utils.logger")
 
+local EMPTY_SCAN_CHUNK = 256
+
 --- @class agentic.utils.BufHelpers
 local BufHelpers = {}
 
@@ -228,9 +230,15 @@ end
 --- @param bufnr integer
 --- @return boolean
 function BufHelpers.is_buffer_empty(bufnr)
-    for _, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
-        if line:match("%S") then
-            return false
+    local line_count = vim.api.nvim_buf_line_count(bufnr)
+
+    for first = 0, line_count - 1, EMPTY_SCAN_CHUNK do
+        local last = math.min(first + EMPTY_SCAN_CHUNK, line_count)
+        local lines = vim.api.nvim_buf_get_lines(bufnr, first, last, false)
+        for _, line in ipairs(lines) do
+            if line:match("%S") then
+                return false
+            end
         end
     end
 
