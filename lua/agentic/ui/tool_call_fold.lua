@@ -1,4 +1,7 @@
 local Config = require("agentic.config")
+local Theme = require("agentic.theme")
+
+local NS_THINKING = vim.api.nvim_create_namespace("agentic_thinking")
 
 --- @class agentic.ui.ToolCallFold
 local Fold = {}
@@ -17,6 +20,17 @@ function Fold.threshold()
         return nil
     end
     return math.max(0, cfg.threshold or 0)
+end
+
+--- @return boolean enabled
+function Fold.thinking_enabled()
+    local cfg = Config.folding and Config.folding.thinking
+    return cfg ~= nil and cfg.enabled == true
+end
+
+--- @return boolean enabled Any chat folding is on
+function Fold.enabled()
+    return Fold.threshold() ~= nil or Fold.thinking_enabled()
 end
 
 --- @param status agentic.acp.ToolCallStatus|nil
@@ -72,9 +86,29 @@ function Fold.should_fold(opts)
     return result.all > threshold
 end
 
---- @return string
+--- @return string|[string, string][]
 function Fold.foldtext()
     local folded = vim.v.foldend - vim.v.foldstart + 1
+    local row = vim.v.foldstart - 1
+    local marks = vim.api.nvim_buf_get_extmarks(
+        0,
+        NS_THINKING,
+        { row, 0 },
+        { row, -1 },
+        { overlap = true, limit = 1 }
+    )
+    if marks[1] then
+        return {
+            {
+                string.format(
+                    "  Thinking · %d %s",
+                    folded,
+                    folded == 1 and "line" or "lines"
+                ),
+                Theme.HL_GROUPS.THINKING,
+            },
+        }
+    end
     return string.format("  %d lines folded - `zo` open | `zc` close", folded)
 end
 
@@ -83,7 +117,7 @@ local FOLDTEXT_EXPR = "v:lua.require'agentic.ui.tool_call_fold'.foldtext()"
 --- @param winid integer
 --- @param _bufnr integer
 function Fold.setup_window(winid, _bufnr)
-    if Fold.threshold() == nil then
+    if not Fold.enabled() then
         return
     end
     if vim.wo[winid].foldmethod ~= "manual" then
@@ -100,7 +134,7 @@ end
 --- @param start_lnum integer 1-indexed inclusive
 --- @param end_lnum integer 1-indexed inclusive
 function Fold.close_range(bufnr, start_lnum, end_lnum)
-    if Fold.threshold() == nil then
+    if not Fold.enabled() then
         return
     end
     if start_lnum > end_lnum then

@@ -1122,9 +1122,19 @@ Folding ~
         threshold = 10,
         fold_on_error = false,  -- Fold failed calls after threshold
       },
+      thinking = {
+        -- Fold each thinking block once the agent moves on from it
+        enabled = false,
+      },
     },
   }
 <
+
+Thinking folds are labeled `Thinking · N lines` and have no threshold. They
+also fold thinking blocks replayed from history. Enabling them with
+`folding.tool_calls.enabled = false` still sets the chat window's
+'foldmethod', 'foldlevel' and 'foldtext', because both kinds of fold share
+the chat window's fold options.
 
                                           *agentic-tool-call-title-config*
 Tool call titles ~

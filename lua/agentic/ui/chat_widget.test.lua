@@ -1090,6 +1090,7 @@ describe("agentic.ui.ChatWidget", function()
                         threshold = 5,
                         fold_on_error = false,
                     },
+                    thinking = { enabled = false },
                 }
 
                 vim.bo[widget.buf_nrs.chat].modifiable = true

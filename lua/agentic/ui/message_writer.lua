@@ -14,6 +14,8 @@ local NS_DIFF_HIGHLIGHTS =
     vim.api.nvim_create_namespace("agentic_diff_highlights")
 local NS_STATUS = vim.api.nvim_create_namespace("agentic_status_footer")
 local NS_THINKING = vim.api.nvim_create_namespace("agentic_thinking")
+local NS_PENDING_THOUGHT_FOLDS =
+    vim.api.nvim_create_namespace("agentic_pending_thought_folds")
 
 local PERMISSION_OPTION_LABELS = {
     allow_once = "Allow",
@@ -65,6 +67,8 @@ local TITLE_FENCE = "`````"
 --- @field _thinking_extmark_id? integer
 --- @field _thinking_start_line? integer
 --- @field _thinking_end_line? integer
+--- @field _pending_thought_folds? integer[] Extmark ids of ended thoughts waiting for a visible window
+--- @field _discarding_thoughts? boolean Set while a reset clears thinking state without folding it
 local MessageWriter = {}
 MessageWriter.__index = MessageWriter
 
@@ -101,9 +105,96 @@ end
 --- Clears thinking block tracking state.
 --- Called when a non-thought write breaks the thinking flow.
 function MessageWriter:_clear_thinking_state()
+    if
+        self._thinking_extmark_id
+        and not self._discarding_thoughts
+        and vim.api.nvim_buf_is_valid(self.bufnr)
+    then
+        local mark = vim.api.nvim_buf_get_extmark_by_id(
+            self.bufnr,
+            NS_THINKING,
+            self._thinking_extmark_id,
+            { details = true }
+        )
+        if mark[3] then
+            self:_queue_thought_fold(mark[1], mark[3].end_row)
+        end
+    end
+
     self._thinking_extmark_id = nil
     self._thinking_start_line = nil
     self._thinking_end_line = nil
+end
+
+--- Records an ended thought so the next scroll pass folds it. The range is an
+--- extmark so later writes above it keep it aligned.
+--- @param first integer 0-indexed
+--- @param last integer 0-indexed
+function MessageWriter:_queue_thought_fold(first, last)
+    if
+        not Fold.thinking_enabled()
+        or not vim.api.nvim_buf_is_valid(self.bufnr)
+    then
+        return
+    end
+    if not first or not last or first > last then
+        return
+    end
+    if last >= vim.api.nvim_buf_line_count(self.bufnr) then
+        return
+    end
+
+    local text =
+        vim.api.nvim_buf_get_lines(self.bufnr, last, last + 1, false)[1]
+    while last > first and text == "" do
+        last = last - 1
+        text = vim.api.nvim_buf_get_lines(self.bufnr, last, last + 1, false)[1]
+    end
+
+    local id = vim.api.nvim_buf_set_extmark(
+        self.bufnr,
+        NS_PENDING_THOUGHT_FOLDS,
+        first,
+        0,
+        {
+            end_row = last,
+            end_col = #text,
+            right_gravity = false,
+            end_right_gravity = false,
+        }
+    )
+    local pending = self._pending_thought_folds or {}
+    pending[#pending + 1] = id
+    self._pending_thought_folds = pending
+end
+
+--- Folds queued thoughts once the buffer is in a window; folds are per window.
+function MessageWriter:_fold_pending_thoughts()
+    local pending = self._pending_thought_folds
+    if not pending then
+        return
+    end
+    if not vim.api.nvim_buf_is_valid(self.bufnr) then
+        self._pending_thought_folds = nil
+        return
+    end
+    if #vim.fn.win_findbuf(self.bufnr) == 0 then
+        return
+    end
+
+    self._pending_thought_folds = nil
+    for _, id in ipairs(pending) do
+        local mark = vim.api.nvim_buf_get_extmark_by_id(
+            self.bufnr,
+            NS_PENDING_THOUGHT_FOLDS,
+            id,
+            { details = true }
+        )
+        if mark[3] and mark[3].end_row then
+            Fold.close_range(self.bufnr, mark[1] + 1, mark[3].end_row + 1)
+        end
+        vim.api.nvim_buf_del_extmark(self.bufnr, NS_PENDING_THOUGHT_FOLDS, id)
+    end
 end
 
 --- Writes a structural message (e.g. welcome banner) without triggering
@@ -404,6 +495,8 @@ end
 
 --- @param bufnr integer
 function MessageWriter:_apply_scroll(bufnr)
+    self:_fold_pending_thoughts()
+
     if self._should_auto_scroll ~= true then
         self._should_auto_scroll = nil
         return
@@ -1094,11 +1187,14 @@ function MessageWriter:replay_history_messages(messages)
             if start_line then
                 local end_line = start_line + #lines - 1
                 self:_set_thinking_extmark(start_line, end_line)
+                self:_queue_thought_fold(start_line, end_line)
             end
         elseif msg.type == "tool_call" then
             self:write_tool_call_block(msg)
         end
     end
+
+    self:_fold_pending_thoughts()
 
     -- Restore current provider for new messages
     self._provider_name = current_provider
@@ -1494,6 +1590,15 @@ end
 --- @param id integer|nil
 --- @return integer extmark_id
 function MessageWriter:_set_thinking_extmark(start_line, end_line, id)
+    if id then
+        local existing =
+            vim.api.nvim_buf_get_extmark_by_id(self.bufnr, NS_THINKING, id, {})
+        if existing[1] then
+            start_line = existing[1]
+            self._thinking_start_line = start_line
+        end
+    end
+
     local end_line_text = vim.api.nvim_buf_get_lines(
         self.bufnr,
         end_line,
@@ -1607,7 +1712,10 @@ function MessageWriter:destroy()
     self._last_sender = nil
     self._provider_name = nil
     self._is_restoring = false
+    self._discarding_thoughts = true
     self:_clear_thinking_state()
+    self._discarding_thoughts = nil
+    self._pending_thought_folds = nil
 end
 
 return MessageWriter

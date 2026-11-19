@@ -2142,6 +2142,7 @@ describe("agentic.ui.MessageWriter", function()
                     threshold = 5,
                     fold_on_error = false,
                 },
+                thinking = { enabled = false },
             }
             Config.auto_scroll = { threshold = 10 }
 
@@ -2429,6 +2430,122 @@ describe("agentic.ui.MessageWriter", function()
             assert.equal(top_pad_row, start_row + 1)
             assert.equal(bottom_pad_row, end_row - 1)
         end)
+    end)
+
+    describe("thinking folds", function()
+        local Fold = require("agentic.ui.tool_call_fold")
+        --- @type agentic.UserConfig.Folding|nil
+        local saved_folding
+
+        before_each(function()
+            saved_folding = Config.folding
+            Config.folding = {
+                tool_calls = {
+                    enabled = false,
+                    threshold = 10,
+                    fold_on_error = false,
+                },
+                thinking = { enabled = true },
+            }
+            Fold.setup_window(winid, bufnr)
+        end)
+
+        after_each(function()
+            Config.folding = saved_folding --- @diagnostic disable-line: assign-type-mismatch
+        end)
+
+        --- @return integer start_lnum 1-indexed first line of the first thought
+        local function first_thought_lnum()
+            local marks = get_thinking_extmarks()
+            return marks[1][2] + 1
+        end
+
+        --- @param lnum integer
+        --- @return integer closed
+        local function foldclosed(lnum)
+            return vim.api.nvim_win_call(winid, function()
+                return vim.fn.foldclosed(lnum)
+            end)
+        end
+
+        it("folds a thinking block when an agent message ends it", function()
+            writer:write_message_chunk(make_thought_update("one\ntwo\nthree"))
+            local start_lnum = first_thought_lnum()
+
+            writer:write_message_chunk(make_update("answer"))
+
+            local answer_lnum = vim.api.nvim_buf_line_count(bufnr)
+            assert.equal(
+                vim.api.nvim_buf_get_lines(
+                    bufnr,
+                    answer_lnum - 1,
+                    answer_lnum,
+                    false
+                )[1],
+                "answer"
+            )
+            assert.equal(foldclosed(start_lnum), start_lnum)
+            assert.equal(foldclosed(start_lnum + 2), start_lnum)
+            assert.equal(foldclosed(answer_lnum), -1)
+        end)
+
+        it("folds replayed thoughts", function()
+            writer:replay_history_messages({
+                { type = "thought", text = "a\nb\nc" },
+                { type = "agent", text = "answer" },
+            })
+
+            local start_lnum = first_thought_lnum()
+            assert.equal(foldclosed(start_lnum), start_lnum)
+            assert.equal(foldclosed(start_lnum + 2), start_lnum)
+        end)
+
+        it("does not fold thinking when the option is off", function()
+            Config.folding = {
+                tool_calls = {
+                    enabled = true,
+                    threshold = 10,
+                    fold_on_error = false,
+                },
+                thinking = { enabled = false },
+            }
+            Fold.setup_window(winid, bufnr)
+            assert.equal(
+                vim.wo[winid].foldtext,
+                "v:lua.require'agentic.ui.tool_call_fold'.foldtext()"
+            )
+
+            writer:write_message_chunk(make_thought_update("one\ntwo"))
+            local start_lnum = first_thought_lnum()
+            writer:write_message_chunk(make_update("answer"))
+
+            assert.equal(foldclosed(start_lnum), -1)
+        end)
+
+        it(
+            "keeps a growing thought anchored when lines are inserted above it",
+            function()
+                writer:write_message_chunk(make_thought_update("one"))
+                local before = get_thinking_extmarks()[1][2]
+                require("agentic.utils.buf_helpers").with_modifiable(
+                    bufnr,
+                    function()
+                        vim.api.nvim_buf_set_lines(
+                            bufnr,
+                            0,
+                            0,
+                            false,
+                            { "x", "y" }
+                        )
+                    end
+                )
+
+                writer:write_message_chunk(make_thought_update(" two"))
+
+                local after = get_thinking_extmarks()[1][2]
+                assert.equal(after, before + 2)
+            end
+        )
     end)
 
     describe("_generate_welcome_header", function()

@@ -18,6 +18,7 @@ describe("agentic.ui.ToolCallFold", function()
                 threshold = 5,
                 fold_on_error = false,
             },
+            thinking = { enabled = false },
         }
         bufnr = vim.api.nvim_create_buf(false, true)
         winid = vim.api.nvim_open_win(bufnr, false, {
@@ -51,6 +52,7 @@ describe("agentic.ui.ToolCallFold", function()
                     threshold = 5,
                     fold_on_error = false,
                 },
+                thinking = { enabled = false },
             }
             assert.is_nil(Fold.threshold())
         end)
@@ -62,6 +64,7 @@ describe("agentic.ui.ToolCallFold", function()
                     threshold = -3,
                     fold_on_error = false,
                 },
+                thinking = { enabled = false },
             }
             assert.equal(Fold.threshold(), 0)
         end)
@@ -175,6 +178,7 @@ describe("agentic.ui.ToolCallFold", function()
                         threshold = 5,
                         fold_on_error = false,
                     },
+                    thinking = { enabled = false },
                 }
                 assert.is_false(Fold.should_fold(should_fold_opts()))
             end
@@ -216,6 +220,7 @@ describe("agentic.ui.ToolCallFold", function()
                     threshold = 5,
                     fold_on_error = false,
                 },
+                thinking = { enabled = false },
             }
             Fold.setup_window(winid, bufnr)
             -- foldmethod default is "manual" so we cannot use that as
@@ -345,6 +350,7 @@ describe("agentic.ui.ToolCallFold", function()
                     threshold = 5,
                     fold_on_error = false,
                 },
+                thinking = { enabled = false },
             }
             Fold.close_range(bufnr, 5, 20)
             vim.api.nvim_win_call(winid, function()
@@ -379,6 +385,52 @@ describe("agentic.ui.ToolCallFold", function()
                 Fold.foldtext(),
                 "  10 lines folded - `zo` open | `zc` close"
             )
+        end)
+
+        it("labels a fold that starts on a thinking block", function()
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "a", "b", "c" })
+            local ns = vim.api.nvim_create_namespace("agentic_thinking")
+            vim.api.nvim_buf_set_extmark(
+                bufnr,
+                ns,
+                0,
+                0,
+                { end_row = 2, end_col = 1 }
+            )
+            Fold.setup_window(winid, bufnr)
+
+            local text = vim.api.nvim_win_call(winid, function()
+                vim.cmd("1,3fold")
+                return vim.fn.foldtextresult(1)
+            end)
+
+            assert.equal(text, "  Thinking · 3 lines")
+        end)
+
+        it("labels a one-line thinking fold in the singular", function()
+            vim.api.nvim_buf_set_lines(
+                bufnr,
+                0,
+                -1,
+                false,
+                { string.rep("a", 500), "b", "c" }
+            )
+            local ns = vim.api.nvim_create_namespace("agentic_thinking")
+            vim.api.nvim_buf_set_extmark(
+                bufnr,
+                ns,
+                0,
+                0,
+                { end_row = 0, end_col = 500 }
+            )
+            Fold.setup_window(winid, bufnr)
+
+            local text = vim.api.nvim_win_call(winid, function()
+                vim.cmd("1,1fold")
+                return vim.fn.foldtextresult(1)
+            end)
+
+            assert.equal(text, "  Thinking · 1 line")
         end)
     end)
 end)

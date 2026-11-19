@@ -54,6 +54,7 @@ describe("Tool block borders", function()
                 threshold = threshold,
                 fold_on_error = false,
             },
+            thinking = { enabled = false },
         }
 
         widget = ChatWidget:new(function()

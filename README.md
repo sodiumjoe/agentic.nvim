@@ -598,13 +598,23 @@ opts = {
       threshold = 10,
       fold_on_error = false,
     },
+    thinking = {
+      enabled = false,
+    },
   },
 }
 ```
 
 Set `threshold = 0` to always fold completed calls, and failed calls when
-`fold_on_error = true`. Negative values are clamped to 0. Set `enabled = false`
-to disable folding entirely.
+`fold_on_error = true`. Negative values are clamped to 0. Set
+`tool_calls.enabled = false` to disable tool call folding.
+
+Set `thinking.enabled = true` to fold each thinking block once the agent moves
+on to a message or tool call, including thinking blocks replayed from history.
+The fold is labeled `Thinking · N lines`. Thinking folds have no threshold.
+Enabling them with `tool_calls.enabled = false` still sets the chat window's
+`foldmethod`, `foldlevel` and `foldtext`, because both kinds of fold share the
+chat window's fold options.
 
 The fold hides the body only - the tool call header and completion status remain
 visible. Use standard Vim fold commands (`za`, `zo`, `zc`) to toggle individual

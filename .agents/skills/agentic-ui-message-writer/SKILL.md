@@ -112,6 +112,23 @@ before changing it.
 Thinking blocks reuse one extmark in `NS_THINKING`. Any non-thought write must
 clear thinking state first or the next thought extends the wrong extmark.
 
+Thinking folds. `_clear_thinking_state` queues each ended thought as an extmark
+in `NS_PENDING_THOUGHT_FOLDS`, and replay queues restored thoughts the same way.
+`_fold_pending_thoughts` closes them on the next `_apply_scroll` (replay also
+calls it at its end), but only once
+the buffer is shown in a window, because folds are per window; until then they
+stay queued. `destroy` discards the queue. `folding.thinking.enabled` gates the
+feature through `Fold.enabled()`, and `Fold.foldtext` labels the fold
+`Thinking · N lines` (`1 line` for one).
+
+Pinned by, in `lua/agentic/ui/message_writer.test.lua`:
+`::"folds a thinking block when an agent message ends it"`,
+`::"folds replayed thoughts"`,
+`::"does not fold thinking when the option is off"`; in
+`lua/agentic/ui/tool_call_fold.test.lua`:
+`::"labels a fold that starts on a thinking block"`,
+`::"labels a one-line thinking fold in the singular"`.
+
 ## TodoList
 
 - `TodoList` owns `ChatWidget.buf_nrs.todos`.
