@@ -603,6 +603,94 @@ describe("ACPClient", function()
         )
     end)
 
+    describe("reconnect", function()
+        --- @param error_response agentic.acp.ACPError|nil
+        local function answer_initialize(error_response)
+            transport_send_stub:invokes(function(_self, data)
+                local decoded = vim.json.decode(data)
+                if decoded.method == "initialize" and captured_on_message then
+                    local on_message = captured_on_message
+                    --[[@as fun(message: table)]]
+                    if error_response then
+                        on_message({
+                            jsonrpc = "2.0",
+                            id = decoded.id,
+                            error = error_response,
+                        })
+                    else
+                        on_message({
+                            jsonrpc = "2.0",
+                            id = decoded.id,
+                            result = {
+                                protocolVersion = 1,
+                                agentCapabilities = LOAD_CAPS,
+                                agentInfo = { name = "test" },
+                            },
+                        })
+                    end
+                end
+            end)
+        end
+
+        local function run_schedules_inline()
+            schedule_stub = spy.stub(vim, "schedule")
+            schedule_stub:invokes(function(fn)
+                fn()
+            end)
+        end
+
+        it(
+            "reconnects with a fresh transport and does not re-run the creator's on_ready",
+            function()
+                local creator_ready = spy.new(function() end)
+                local client = create_ready_client(LOAD_CAPS)
+                --- @diagnostic disable-next-line: invisible
+                client._on_ready = creator_ready --[[@as fun(client: agentic.acp.ACPClient)]]
+                run_schedules_inline()
+                --- @diagnostic disable-next-line: invisible
+                client:_set_state("error")
+                local transports_before = create_transport_stub.call_count
+                local ready = spy.new(function() end)
+                answer_initialize(nil)
+
+                client:reconnect(
+                    ready --[[@as fun(client: agentic.acp.ACPClient)]]
+                )
+
+                assert.equal(
+                    transports_before + 1,
+                    create_transport_stub.call_count
+                )
+                assert.equal(0, creator_ready.call_count)
+                assert.equal(1, ready.call_count)
+                assert.equal("ready", client.state)
+            end
+        )
+
+        it(
+            "still hands the client to on_ready when the reconnect handshake fails",
+            function()
+                local client = create_ready_client(LOAD_CAPS)
+                local queue = queue_schedules()
+                --- @diagnostic disable-next-line: invisible
+                client:_set_state("error")
+                local ready = spy.new(function() end)
+                answer_initialize({ code = -32603, message = "boom" })
+
+                client:reconnect(
+                    ready --[[@as fun(client: agentic.acp.ACPClient)]]
+                )
+                local sync_ready_count = ready.call_count
+                drain(queue)
+
+                assert.equal(1, sync_ready_count)
+                assert.equal(1, ready.call_count)
+                assert.equal(1, transport_send_stub.call_count)
+                assert.equal("error", client.state)
+            end
+        )
+    end)
+
     describe("load_session", function()
         it("returns the standard load response on success", function()
             local client = create_ready_client(LOAD_CAPS)

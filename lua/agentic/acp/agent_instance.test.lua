@@ -53,7 +53,12 @@ describe("agentic.acp.AgentInstance", function()
         }
 
         client_new_spy = spy.new(function(_self, config, on_ready)
-            local client = { provider_config = config }
+            local client = {
+                provider_config = config,
+                state = "ready",
+                when_ready = spy.new(function() end),
+                reconnect = spy.new(function() end),
+            }
             on_ready(client)
             return client
         end)
@@ -134,5 +139,41 @@ describe("agentic.acp.AgentInstance", function()
 
         assert.is_not_nil(client)
         assert.equal("function", type(client_new_spy.calls[1][3]))
+    end)
+
+    it(
+        "defers on_ready for a cached client that is still initializing",
+        function()
+            local first = AgentInstance.get_instance(
+                "codex-acp",
+                function() end
+            ) --[[@as table]]
+            first.state = "initializing"
+            local ready = spy.new(function() end)
+
+            AgentInstance.get_instance(
+                "codex-acp",
+                ready --[[@as fun(client: agentic.acp.ACPClient)]]
+            )
+
+            assert.equal(0, ready.call_count)
+            assert.equal(1, first.when_ready.call_count)
+        end
+    )
+
+    it("reconnects a cached client that failed or disconnected", function()
+        local first = AgentInstance.get_instance("codex-acp", function() end) --[[@as table]]
+        first.state = "error"
+        first.transport = { process = {} }
+        local ready = spy.new(function() end)
+
+        local again = AgentInstance.get_instance(
+            "codex-acp",
+            ready --[[@as fun(client: agentic.acp.ACPClient)]]
+        )
+
+        assert.equal(first, again)
+        assert.equal(1, first.reconnect.call_count)
+        assert.equal(1, client_new_spy.call_count)
     end)
 end)

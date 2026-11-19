@@ -770,6 +770,32 @@ function ACPClient:stop()
     self.transport:stop()
 end
 
+--- Replaces the transport and runs the handshake again. The creator's
+--- `on_ready` is not re-run: it belonged to the first connection.
+--- `on_ready` also runs when the handshake fails, so the caller's requests
+--- fail through the disconnected guard instead of waiting forever.
+--- @param on_ready fun(client: agentic.acp.ACPClient)|nil
+function ACPClient:reconnect(on_ready)
+    pcall(function()
+        self:stop()
+    end)
+    self:_set_state("disconnected")
+    self._on_ready = function() end
+    self:_setup_transport()
+    self:_connect()
+
+    if not on_ready then
+        return
+    end
+    if self.state == "error" or self.state == "disconnected" then
+        on_ready(self)
+        return
+    end
+    self:when_ready(on_ready, function()
+        on_ready(self)
+    end)
+end
+
 function ACPClient:_connect()
     if self.state ~= "disconnected" then
         return

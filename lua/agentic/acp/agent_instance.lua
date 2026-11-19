@@ -24,8 +24,16 @@ function AgentInstance.get_instance(provider_name, on_ready)
     local client = AgentInstance._instances[provider_name]
 
     if client then
-        if on_ready then
-            on_ready(client)
+        if client.state == "error" or client.state == "disconnected" then
+            client:reconnect(on_ready)
+        elseif on_ready then
+            if client.state == "ready" then
+                on_ready(client)
+            else
+                client:when_ready(on_ready, function()
+                    on_ready(client)
+                end)
+            end
         end
         return client
     end
