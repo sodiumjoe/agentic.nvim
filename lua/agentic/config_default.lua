@@ -228,6 +228,7 @@
 --- @field enabled boolean Whether to fold tool call bodies.
 --- @field threshold integer Fold when the interior occupies more than this many wrapped screen rows. 0 always folds. Negative values are clamped to 0.
 --- @field fold_on_error boolean Whether failed tool calls should fold when over threshold.
+--- @field fold_completed_diffs boolean Fold a diff once its tool call completes.
 
 --- Thinking block folding configuration
 --- @class agentic.UserConfig.Folding.Thinking
@@ -622,6 +623,7 @@ local ConfigDefault = {
             enabled = true,
             threshold = 10,
             fold_on_error = false,
+            fold_completed_diffs = false,
         },
         thinking = {
             enabled = false,

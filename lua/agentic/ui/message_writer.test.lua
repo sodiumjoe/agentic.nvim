@@ -2141,6 +2141,7 @@ describe("agentic.ui.MessageWriter", function()
                     enabled = true,
                     threshold = 5,
                     fold_on_error = false,
+                    fold_completed_diffs = false,
                 },
                 thinking = { enabled = false },
             }
@@ -2315,6 +2316,31 @@ describe("agentic.ui.MessageWriter", function()
             assert_fold_closed("failed-folded")
         end)
 
+        it("folds a diff when a status-only update completes it", function()
+            Config.folding.tool_calls.threshold = 0
+            Config.folding.tool_calls.fold_completed_diffs = true
+
+            writer:write_tool_call_block({
+                tool_call_id = "diff-complete",
+                kind = "edit",
+                status = "in_progress",
+                argument = "/tmp/x.lua",
+                file_path = "/tmp/x.lua",
+                diff = {
+                    old = { "a" },
+                    new = { "b", "c", "d" },
+                },
+            })
+            assert_fold_open("diff-complete")
+
+            writer:update_tool_call_block({
+                tool_call_id = "diff-complete",
+                status = "completed",
+            })
+
+            assert_fold_closed("diff-complete")
+        end)
+
         it("folds restored completed tool calls", function()
             writer:replay_history_messages({
                 {
@@ -2444,6 +2470,7 @@ describe("agentic.ui.MessageWriter", function()
                     enabled = false,
                     threshold = 10,
                     fold_on_error = false,
+                    fold_completed_diffs = false,
                 },
                 thinking = { enabled = true },
             }
@@ -2506,6 +2533,7 @@ describe("agentic.ui.MessageWriter", function()
                     enabled = true,
                     threshold = 10,
                     fold_on_error = false,
+                    fold_completed_diffs = false,
                 },
                 thinking = { enabled = false },
             }

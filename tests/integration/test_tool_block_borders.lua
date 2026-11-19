@@ -53,6 +53,7 @@ describe("Tool block borders", function()
                 enabled = folding_enabled,
                 threshold = threshold,
                 fold_on_error = false,
+                fold_completed_diffs = false,
             },
             thinking = { enabled = false },
         }

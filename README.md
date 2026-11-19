@@ -597,6 +597,7 @@ opts = {
       enabled = true,
       threshold = 10,
       fold_on_error = false,
+      fold_completed_diffs = false,
     },
     thinking = {
       enabled = false,
@@ -608,6 +609,10 @@ opts = {
 Set `threshold = 0` to always fold completed calls, and failed calls when
 `fold_on_error = true`. Negative values are clamped to 0. Set
 `tool_calls.enabled = false` to disable tool call folding.
+
+Diff tool calls stay open by default. Set `tool_calls.fold_completed_diffs =
+true` to fold a diff once its tool call completes, including when the
+completion arrives as a status-only update. The same `threshold` applies.
 
 Set `thinking.enabled = true` to fold each thinking block once the agent moves
 on to a message or tool call, including thinking blocks replayed from history.

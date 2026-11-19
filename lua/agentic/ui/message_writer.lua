@@ -684,6 +684,24 @@ function MessageWriter:update_tool_call_block(tool_call_block)
             self:_clear_status_namespace(start_row, old_end_row)
             self:_apply_status_highlights_if_present(tracker)
 
+            if
+                not tracker.has_fold
+                and Fold.should_fold({
+                    bufnr = bufnr,
+                    start_row = start_row + ToolCallBlocks.HEADER_HEIGHT,
+                    end_row = old_end_row - 2,
+                    status = tracker.status,
+                    is_diff = true,
+                })
+            then
+                Fold.close_range(
+                    bufnr,
+                    start_row + ToolCallBlocks.HEADER_HEIGHT,
+                    old_end_row
+                )
+                tracker.has_fold = true
+            end
+
             return false
         end
 

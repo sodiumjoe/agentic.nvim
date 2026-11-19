@@ -1121,6 +1121,8 @@ Folding ~
         -- 0 = always.
         threshold = 10,
         fold_on_error = false,  -- Fold failed calls after threshold
+        -- Fold a diff once its tool call completes
+        fold_completed_diffs = false,
       },
       thinking = {
         -- Fold each thinking block once the agent moves on from it
@@ -1129,6 +1131,10 @@ Folding ~
     },
   }
 <
+
+Diff tool calls stay open unless `fold_completed_diffs = true`. Then a diff
+folds once its tool call completes, including when the completion arrives as
+a status-only update. The same `threshold` applies.
 
 Thinking folds are labeled `Thinking · N lines` and have no threshold. They
 also fold thinking blocks replayed from history. Enabling them with

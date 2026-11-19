@@ -17,6 +17,7 @@ describe("agentic.ui.ToolCallFold", function()
                 enabled = true,
                 threshold = 5,
                 fold_on_error = false,
+                fold_completed_diffs = false,
             },
             thinking = { enabled = false },
         }
@@ -51,6 +52,7 @@ describe("agentic.ui.ToolCallFold", function()
                     enabled = false,
                     threshold = 5,
                     fold_on_error = false,
+                    fold_completed_diffs = false,
                 },
                 thinking = { enabled = false },
             }
@@ -63,6 +65,7 @@ describe("agentic.ui.ToolCallFold", function()
                     enabled = true,
                     threshold = -3,
                     fold_on_error = false,
+                    fold_completed_diffs = false,
                 },
                 thinking = { enabled = false },
             }
@@ -140,6 +143,23 @@ describe("agentic.ui.ToolCallFold", function()
             )
         end)
 
+        it("folds a completed diff when fold_completed_diffs is on", function()
+            Config.folding.tool_calls.fold_completed_diffs = true
+            Config.folding.tool_calls.threshold = 0
+            fill({ "L1", "L2", "L3", "L4", "L5" })
+
+            assert.is_true(
+                Fold.should_fold(
+                    should_fold_opts({ end_row = 4, is_diff = true })
+                )
+            )
+            assert.is_false(Fold.should_fold(should_fold_opts({
+                end_row = 4,
+                is_diff = true,
+                status = "in_progress",
+            })))
+        end)
+
         it("does not fold active tool calls regardless of size", function()
             fill({ string.rep("x", 1000) })
             for _, status in ipairs({ "pending", "in_progress" }) do
@@ -177,6 +197,7 @@ describe("agentic.ui.ToolCallFold", function()
                         enabled = false,
                         threshold = 5,
                         fold_on_error = false,
+                        fold_completed_diffs = false,
                     },
                     thinking = { enabled = false },
                 }
@@ -219,6 +240,7 @@ describe("agentic.ui.ToolCallFold", function()
                     enabled = false,
                     threshold = 5,
                     fold_on_error = false,
+                    fold_completed_diffs = false,
                 },
                 thinking = { enabled = false },
             }
@@ -349,6 +371,7 @@ describe("agentic.ui.ToolCallFold", function()
                     enabled = false,
                     threshold = 5,
                     fold_on_error = false,
+                    fold_completed_diffs = false,
                 },
                 thinking = { enabled = false },
             }

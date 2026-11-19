@@ -33,6 +33,12 @@ function Fold.enabled()
     return Fold.threshold() ~= nil or Fold.thinking_enabled()
 end
 
+--- @return boolean enabled
+function Fold.fold_completed_diffs()
+    local cfg = Config.folding and Config.folding.tool_calls
+    return cfg ~= nil and cfg.fold_completed_diffs == true
+end
+
 --- @param status agentic.acp.ToolCallStatus|nil
 --- @return boolean should_fold
 function Fold.should_auto_fold(status)
@@ -51,7 +57,10 @@ end
 --- @param opts agentic.ui.ToolCallFold.ShouldFoldOpts
 --- @return boolean should_fold
 function Fold.should_fold(opts)
-    if opts.is_diff then
+    if
+        opts.is_diff
+        and not (opts.status == "completed" and Fold.fold_completed_diffs())
+    then
         return false
     end
 

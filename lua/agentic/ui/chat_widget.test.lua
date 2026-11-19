@@ -1089,6 +1089,7 @@ describe("agentic.ui.ChatWidget", function()
                         enabled = true,
                         threshold = 5,
                         fold_on_error = false,
+                        fold_completed_diffs = false,
                     },
                     thinking = { enabled = false },
                 }
