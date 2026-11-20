@@ -86,7 +86,10 @@ Use only the normal write path outside these cases.
   `write_message_chunk()`. Each replayed `user_message_chunk` becomes its own
   message; chunks are not reassembled. Pinned by, in
   `lua/agentic/session_manager.test.lua`:
-  `::"renders replay chunks as formatted messages"`.
+  `::"renders replay chunks as formatted messages"`,
+  `::"renders live chunks when the provider opts in"`. Live chunks take this
+  path only when the provider sets `render_live_user_messages`; otherwise they
+  are ignored (`::"ignores chunk when _is_restoring_session is false"`).
 - Adding a bulk-write path requires a new row here and a test.
 
 ## Sender classification

@@ -377,6 +377,10 @@ by configuring the `acp_providers` property:
   apply on session creation (e.g., `"high"`, `"max"` for Claude)
 - `client_class` (table, optional) - A subclass of `ACPClient` to construct for
   this provider instead of `ACPClient`, to override its protected methods
+- `render_live_user_messages` (boolean, optional) - Render live
+  `user_message_chunk` updates like replayed ones, for providers that share one
+  session across editors and send each editor's prompts to the others. The
+  provider must not echo this editor's own prompt
 
 > [!NOTE]  
 > Customizing a provider only requires specifying the fields you want to

@@ -1072,6 +1072,24 @@ describe("agentic.SessionManager", function()
             assert.spy(write_restoring_message_spy).was.called(0)
         end)
 
+        it("renders live chunks when the provider opts in", function()
+            session.agent.provider_config.render_live_user_messages = true
+
+            session:_on_session_update({
+                sessionUpdate = "user_message_chunk",
+                content = { type = "text", text = "hi" },
+            })
+
+            assert.spy(write_restoring_message_spy).was.called(1)
+            local message = write_restoring_message_spy.calls[1][2]
+            assert.truthy(message.content.text:match("hi"))
+
+            assert.spy(session.chat_history.add_message).was.called(1)
+            local added = session.chat_history.add_message.calls[1][2] --- @diagnostic disable-line: undefined-field
+            assert.equal("user", added.type)
+            assert.equal("hi", added.text)
+        end)
+
         it("renders replay chunks as formatted messages", function()
             session:_on_session_update({
                 sessionUpdate = "user_message_chunk",

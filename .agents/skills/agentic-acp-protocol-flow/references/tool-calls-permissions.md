@@ -18,13 +18,13 @@ Layer 1 - `ACPClient:__handle_session_update`:
 
 Layer 2 - `SessionManager:_on_session_update`:
 
-| `sessionUpdate` value   | Routed to                                |
-| ----------------------- | ---------------------------------------- |
-| `"agent_message_chunk"` | `MessageWriter:write_message_chunk()`    |
-| `"agent_thought_chunk"` | `MessageWriter:write_message_chunk()`    |
-| `"user_message_chunk"`  | `MessageWriter`                          |
-| `"plan"`                | `TodoList:render(update.entries)`        |
-| other update types      | handled per type (commands, modes, etc.) |
+| `sessionUpdate` value   | Routed to                                                |
+| ----------------------- | -------------------------------------------------------- |
+| `"agent_message_chunk"` | `MessageWriter:write_message_chunk()`                    |
+| `"agent_thought_chunk"` | `MessageWriter:write_message_chunk()`                    |
+| `"user_message_chunk"`  | `MessageWriter` (replay, or `render_live_user_messages`) |
+| `"plan"`                | `TodoList:render(update.entries)`                        |
+| other update types      | handled per type (commands, modes, etc.)                 |
 
 `request_permission` is NOT a `sessionUpdate` value. It is the JSON-RPC method
 `session/request_permission`, handled separately by

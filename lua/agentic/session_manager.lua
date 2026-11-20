@@ -305,7 +305,9 @@ end
 --- @param replaying boolean|nil
 function SessionManager:_on_session_update(update, replaying)
     if update.sessionUpdate == "user_message_chunk" then
-        if replaying then
+        if
+            replaying or self.agent.provider_config.render_live_user_messages
+        then
             local text = update.content
                 and update.content.type == "text"
                 and update.content.text
