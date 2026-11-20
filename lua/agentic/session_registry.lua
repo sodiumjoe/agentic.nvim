@@ -75,12 +75,10 @@ function SessionRegistry.create(provider_name, start_spec, agent)
                         opts.retain_source = true
                     end
 
-                    SessionRegistry.replace(
-                        current,
-                        current.provider_name,
-                        { kind = "new" },
-                        opts
-                    )
+                    SessionRegistry.replace(current, current.provider_name, {
+                        kind = "new",
+                        source_session_id = current.session_id,
+                    }, opts)
                 end
             )
         end)

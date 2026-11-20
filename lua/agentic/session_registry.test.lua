@@ -345,6 +345,43 @@ describe("agentic.SessionRegistry", function()
             end
         )
 
+        it("tells the /new replacement which session it replaces", function()
+            local on_new_session
+            session_manager_mock.new = function(
+                _self,
+                _agent,
+                _provider_name,
+                callback
+            )
+                on_new_session = callback
+                return create_mock_session()
+            end
+            SessionRegistry.create()
+
+            local current = {
+                agent = {},
+                provider_name = "claude-acp",
+                session_id = "current-session-id",
+            }
+            local lifecycle_stub =
+                spy.stub(SessionRegistry, "choose_session_lifecycle")
+            lifecycle_stub:invokes(function(_current, _prompt, on_choice)
+                on_choice(true)
+            end)
+            local replace_stub = spy.stub(SessionRegistry, "replace")
+
+            on_new_session(current)
+
+            lifecycle_stub:revert()
+            local replace_call = replace_stub.calls[1]
+            replace_stub:revert()
+            assert.equal(current, replace_call[1])
+            assert.same(
+                { kind = "new", source_session_id = "current-session-id" },
+                replace_call[3]
+            )
+        end)
+
         it(
             "passes the requested provider without changing the global",
             function()
