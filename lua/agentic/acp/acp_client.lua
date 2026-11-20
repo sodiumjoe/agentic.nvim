@@ -459,7 +459,7 @@ function ACPClient:_handle_notification(message_id, method, params)
             string.format("Received '%s' notification, ignoring it", method)
         )
     else
-        self:__handle_unknown_method(message_id, method)
+        self:__handle_unknown_method(message_id, method, params)
     end
 end
 
@@ -476,7 +476,8 @@ end
 --- @protected
 --- @param message_id number|nil `nil` for a notification
 --- @param method any Unvalidated: `_handle_message` only checks it is truthy
-function ACPClient:__handle_unknown_method(message_id, method)
+--- @param _params table|nil Unused here; passed so a subclass can act on it
+function ACPClient:__handle_unknown_method(message_id, method, _params)
     local kind = message_id and "request" or "notification"
 
     if type(method) == "string" and method:sub(1, 1) == "_" then

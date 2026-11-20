@@ -1419,6 +1419,32 @@ describe("ACPClient", function()
                 )
             )
         end)
+
+        it("hands the params of an unknown method to a subclass", function()
+            --- @class agentic.acp.UnknownMethodTestClient : agentic.acp.ACPClient
+            local Sub = setmetatable({}, { __index = ACPClient })
+            Sub.__index = Sub
+            local seen = {}
+
+            function Sub:__handle_unknown_method(id, method, params)
+                seen = { id = id, method = method, params = params }
+            end
+
+            create_ready_client(nil, Sub)
+            local on_message = captured_on_message
+            assert.is_not_nil(on_message)
+            --- @cast on_message -nil
+
+            on_message({
+                jsonrpc = "2.0",
+                method = "_x/y",
+                params = { a = 1 },
+            })
+
+            assert.is_nil(seen.id)
+            assert.equal("_x/y", seen.method)
+            assert.same({ a = 1 }, seen.params)
+        end)
     end)
 
     -- https://agentclientprotocol.com/protocol/extensibility

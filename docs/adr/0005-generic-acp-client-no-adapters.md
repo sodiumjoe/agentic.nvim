@@ -23,7 +23,8 @@ protected methods (`__handle_tool_call`, `__handle_tool_call_update`,
 an inline comment naming the provider that needs it. `__request_params` lets a
 subclass decorate outgoing `session/new`, `session/load`, `session/prompt` and
 `session/cancel` params, for example with `_meta`; the base returns them
-unchanged.
+unchanged. `__handle_unknown_method` receives the message's `params` with its
+id and method, so a subclass can handle a vendor extension method.
 
 Adding a new provider requires only a config entry under
 `Config.acp_providers`. No adapter file is created unless the provider
@@ -53,6 +54,7 @@ deviates from ACP in ways not yet handled by `ACPClient`.
 
 | Date       | Change                                                                                                                                         |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-19 | `__handle_unknown_method` receives the message's `params`, so a subclass can handle vendor extension methods.                                  |
 | 2026-11-19 | Added `client_class` so a provider can supply its `ACPClient` subclass, and the protected `__request_params` seam for outgoing session params. |
 | 2026-05-16 | Initial decision recorded (post-hoc).                                                                                                          |
 | 2026-03-20 | Removed per-provider adapter modules; inlined quirks in `ACPClient`.                                                                           |

@@ -47,14 +47,15 @@ Read in this order. Each step calls the next:
 
 Current extension points:
 
-| Method                        | Behavior                                                                                                                             |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `__handle_tool_call`          | Builds ToolCallBlock, notifies subscriber                                                                                            |
-| `__build_tool_call_message`   | Parses ACP fields and quirk fallbacks                                                                                                |
-| `__handle_tool_call_update`   | Builds partial, notifies subscriber                                                                                                  |
-| `__handle_request_permission` | Sends permission result to provider                                                                                                  |
-| `__handle_session_update`     | Routes by `sessionUpdate` type                                                                                                       |
-| `__request_params`            | Lets a subclass decorate outgoing session/new, session/load, session/prompt and session/cancel params (e.g. `_meta`); main loop only |
+| Method                        | Behavior                                                                                                                                     |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `__handle_tool_call`          | Builds ToolCallBlock, notifies subscriber                                                                                                    |
+| `__build_tool_call_message`   | Parses ACP fields and quirk fallbacks                                                                                                        |
+| `__handle_tool_call_update`   | Builds partial, notifies subscriber                                                                                                          |
+| `__handle_request_permission` | Sends permission result to provider                                                                                                          |
+| `__handle_session_update`     | Routes by `sessionUpdate` type                                                                                                               |
+| `__handle_unknown_method`     | Answers or ignores an unrecognized method; subclasses receive `(message_id, method, params)` and may override it to handle vendor extensions |
+| `__request_params`            | Lets a subclass decorate outgoing session/new, session/load, session/prompt and session/cancel params (e.g. `_meta`); main loop only         |
 
 Only subclass or extend these when a real provider deviation requires it.
 
