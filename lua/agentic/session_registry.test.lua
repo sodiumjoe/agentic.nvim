@@ -2248,4 +2248,205 @@ describe("agentic.SessionRegistry one-shot lifecycle", function()
             }, events)
         end
     )
+
+    describe("reattach", function()
+        local ACPClient = require("agentic.acp.acp_client")
+
+        --- @return agentic.acp.ACPClient agent
+        local function new_acp_agent()
+            local agent = setmetatable({
+                provider_config = { name = "Injected" },
+                subscribers = {},
+                sent = {},
+            }, { __index = ACPClient })
+            function agent:_send_notification(method, params)
+                self.sent[#self.sent + 1] = { method = method, params = params }
+            end
+            return agent --[[@as agentic.acp.ACPClient]]
+        end
+
+        --- Subscribes on load and releases on destroy, like `SessionManager`.
+        --- @param session agentic.SessionManager
+        --- @param agent agentic.acp.ACPClient
+        local function subscribe_like_a_manager(session, agent)
+            session.agent = agent
+            local prepare_start = session.prepare_start
+            function session:prepare_start(spec, is_replaying)
+                self.handlers = {
+                    on_session_update = function() end,
+                    on_request_permission = function() end,
+                    on_error = function() end,
+                    on_tool_call = function() end,
+                    on_tool_call_update = function() end,
+                }
+                if spec.kind == "load" then
+                    agent:_subscribe(spec.session_id, self.handlers)
+                end
+                return prepare_start(self, spec, is_replaying)
+            end
+            local destroy = session.destroy
+            function session:destroy()
+                if self.session_id then
+                    agent:cancel_session(self.session_id, self.handlers)
+                end
+                destroy(self)
+            end
+        end
+
+        --- @param agent agentic.acp.ACPClient
+        --- @return agentic.SessionManager source
+        local function loaded_source(agent)
+            local source =
+                new_session("source", vim.api.nvim_get_current_tabpage())
+            subscribe_like_a_manager(source, agent)
+            source:prepare_start(
+                { kind = "load", session_id = "load-id" },
+                function()
+                    return true
+                end
+            )
+            source.session_id = "load-id"
+            source.session_key = 1
+            source.widget.session_key = 1
+            SessionRegistry.sessions[1] = source
+            SessionRegistry._next_id = 1
+            events = {}
+            new_stub:invokes(function(_self, client, provider_name)
+                local session = new_session("target")
+                subscribe_like_a_manager(session, client)
+                session.provider_name = provider_name
+                return session
+            end)
+            return source
+        end
+
+        --- @param source agentic.SessionManager
+        --- @param opts agentic.SessionReplacementOpts|nil
+        --- @return agentic.SessionManager target
+        local function reattach(source, opts)
+            return SessionRegistry.replace(
+                source,
+                "claude-acp",
+                { kind = "load", session_id = "load-id" },
+                vim.tbl_extend(
+                    "force",
+                    { agent = source.agent, reattach = true },
+                    opts or {}
+                )
+            )
+        end
+
+        --- @param agent agentic.acp.ACPClient
+        --- @return string[] methods
+        local function sent_methods(agent)
+            return vim.tbl_map(function(message)
+                return message.method
+            end, agent.sent)
+        end
+
+        it(
+            "loads the source's session into a new manager and commits it",
+            function()
+                local source = loaded_source(new_acp_agent())
+
+                local target = reattach(source)
+
+                assert.is_true(target ~= source)
+                assert.same(
+                    { kind = "load", session_id = "load-id" },
+                    target.start_spec
+                )
+                target.session_id = "load-id"
+                target.ready_callback(target)
+
+                assert.same({
+                    "target:start",
+                    "source:hide",
+                    "target:show",
+                    "source:destroy",
+                }, events)
+                assert.is_nil(SessionRegistry.get(1))
+                assert.equal(target, SessionRegistry.get(target.session_key))
+            end
+        )
+
+        it(
+            "keeps the target subscribed when the commit destroys the source",
+            function()
+                local agent = new_acp_agent()
+                local source = loaded_source(agent)
+
+                local target = reattach(source)
+                assert.is_true(target ~= source)
+                target.session_id = "load-id"
+                target.ready_callback(target)
+
+                assert.is_true(source.destroyed)
+                assert.is_true(agent.subscribers["load-id"] == target.handlers)
+                assert.same({}, sent_methods(agent))
+            end
+        )
+
+        it("resolves the session id to the pending target", function()
+            local agent = new_acp_agent()
+            local source = loaded_source(agent)
+
+            local target = reattach(source)
+
+            assert.is_true(target ~= source)
+            assert.is_true(target.session_key > source.session_key)
+            assert.equal(
+                target,
+                SessionRegistry.find_by_acp_session_id("load-id", agent)
+            )
+        end)
+
+        it(
+            "hands the session back to the source when the commit rolls back",
+            function()
+                local agent = new_acp_agent()
+                local source = loaded_source(agent)
+
+                local target = reattach(source, {
+                    prepare = function()
+                        return false
+                    end,
+                })
+                assert.is_true(target ~= source)
+                target.session_id = "load-id"
+                target.ready_callback(target)
+
+                assert.is_true(target.destroyed)
+                assert.equal(source, SessionRegistry.get(1))
+                assert.is_true(agent.subscribers["load-id"] == source.handlers)
+                assert.same({}, sent_methods(agent))
+            end
+        )
+
+        it(
+            "releases the target once when the source is destroyed during a pending reattach",
+            function()
+                local agent = new_acp_agent()
+                local source = loaded_source(agent)
+
+                local target = reattach(source)
+                assert.is_true(target ~= source)
+                local target_owned_before = agent.subscribers["load-id"]
+                    == target.handlers
+                SessionRegistry.destroy(1)
+                local sent_after_source_destroy = sent_methods(agent)
+                target.session_id = "load-id"
+                target.ready_callback(target)
+
+                assert.is_true(target_owned_before)
+                assert.is_true(source.destroyed)
+                assert.same({}, sent_after_source_destroy)
+                assert.is_true(target.destroyed)
+                assert.is_nil(SessionRegistry.get(target.session_key))
+                assert.same({ "session/cancel" }, sent_methods(agent))
+                assert.equal(agent.sent[1].params.sessionId, "load-id")
+                assert.is_nil(agent.subscribers["load-id"])
+            end
+        )
+    end)
 end)

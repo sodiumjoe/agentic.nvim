@@ -1793,18 +1793,18 @@ describe("ACPClient", function()
         end)
     end)
 
-    describe("cancel_session", function()
-        --- @return agentic.acp.ClientHandlers handlers
-        local function new_handlers()
-            return {
-                on_session_update = function() end,
-                on_request_permission = function() end,
-                on_error = function() end,
-                on_tool_call = function() end,
-                on_tool_call_update = function() end,
-            }
-        end
+    --- @return agentic.acp.ClientHandlers handlers
+    local function new_handlers()
+        return {
+            on_session_update = function() end,
+            on_request_permission = function() end,
+            on_error = function() end,
+            on_tool_call = function() end,
+            on_tool_call_update = function() end,
+        }
+    end
 
+    describe("cancel_session", function()
         it("keeps a subscriber the given handlers do not own", function()
             local client = create_ready_client()
             local owner = new_handlers()
@@ -1856,6 +1856,25 @@ describe("ACPClient", function()
                 assert.equal(0, #sent)
             end
         )
+    end)
+
+    describe("transfer_subscriber", function()
+        it("moves the subscriber only while the giver owns it", function()
+            local client = create_ready_client()
+            local owner = new_handlers()
+            local giver = new_handlers()
+            local taker = new_handlers()
+            client.subscribers["s1"] = owner
+            client.subscribers["s2"] = giver
+            local sent = capture_sent()
+
+            client:transfer_subscriber("s1", giver, taker)
+            client:transfer_subscriber("s2", giver, taker)
+
+            assert.is_true(client.subscribers["s1"] == owner)
+            assert.is_true(client.subscribers["s2"] == taker)
+            assert.equal(0, #sent)
+        end)
     end)
 
     describe("__handle_request_permission", function()

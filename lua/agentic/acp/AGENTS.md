@@ -53,11 +53,18 @@ late startup reply in a fast event, so `__request_params("session/cancel", ...)`
 runs there too, and an override for that method falls under the fast-event ban
 in `lua/agentic/AGENTS.md`, section "Banned calls".
 
+`ACPClient:transfer_subscriber(session_id, from, to)` is the one handover:
+it moves the id to `to` only while `from` owns it, and sends nothing. A rolled-back
+reattach uses it to give the id back to the kept source before the target's
+release runs (ADR 0008).
+
 Regressions:
 
 - `lua/agentic/acp/acp_client.test.lua::"keeps a subscriber the given handlers do not own"`
 - `lua/agentic/acp/acp_client.test.lua::"sends nothing for handlers when the id has no subscriber"`
 - `lua/agentic/session_manager.test.lua::"keeps the successor subscribed when a predecessor on its session id is destroyed"`
+- `lua/agentic/acp/acp_client.test.lua::"moves the subscriber only while the giver owns it"`
+- `lua/agentic/session_registry.test.lua::"hands the session back to the source when the commit rolls back"`
 
 ## Protocol contracts
 

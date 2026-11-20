@@ -174,6 +174,7 @@ end
 --- @class agentic.SessionReplacementOpts
 --- @field agent? agentic.acp.ACPClient
 --- @field prepare? fun(source: agentic.SessionManager, target: agentic.SessionManager): boolean?
+--- @field reattach? boolean Load the same session into a new manager even when the source owns it. Unsupported with `retain_source`: the target takes the source's subscriber, leaving the kept source registered but deaf (ADR 0008)
 --- @field retain_source? boolean
 --- @field show_opts? agentic.ui.ChatWidget.ShowOpts
 
@@ -192,7 +193,7 @@ function SessionRegistry.replace(source, provider_name, start_spec, opts)
     if start_spec.kind == "load" then
         local existing =
             SessionRegistry.find_by_acp_session_id(start_spec.session_id, agent)
-        if existing then
+        if existing and not (opts.reattach and existing == source) then
             if existing == source then
                 return existing
             end
@@ -230,9 +231,30 @@ commit_replacement = function(source, target, opts, destroy_target_on_rollback)
     end
 
     local function rollback_target()
-        if destroy_target_on_rollback then
-            SessionRegistry.destroy(target_key)
+        if not destroy_target_on_rollback then
+            return
         end
+
+        -- A reattach target took over the kept source's subscriber; its release
+        -- would silence the source and cancel the session they share.
+        local kept = registered(source)
+        local session_id = target.session_id
+        if
+            kept
+            and kept.agent == target.agent
+            and session_id
+            and kept.session_id == session_id
+            and kept.handlers
+            and target.handlers
+        then
+            target.agent:transfer_subscriber(
+                session_id,
+                target.handlers,
+                kept.handlers
+            )
+        end
+
+        SessionRegistry.destroy(target_key)
     end
 
     if source == target then
@@ -355,24 +377,27 @@ function SessionRegistry.get(session_key)
 end
 
 --- The live session already holding an ACP session ID on this provider, if any.
+--- A reattach leaves several holders; the newest key wins.
 --- @param acp_session_id string
 --- @param agent agentic.acp.ACPClient
 --- @return agentic.SessionManager|nil
 function SessionRegistry.find_by_acp_session_id(acp_session_id, agent)
-    for _, session in pairs(SessionRegistry.sessions) do
+    local found_key
+
+    for key, session in pairs(SessionRegistry.sessions) do
         local attempt = SessionRegistry._start_attempts[session]
+        local holds = session.session_id == acp_session_id
+            or (attempt and attempt:has_session_id(acp_session_id))
         if
             session.agent == agent
-            and (
-                session.session_id == acp_session_id
-                or (attempt and attempt:has_session_id(acp_session_id))
-            )
+            and holds
+            and (not found_key or key > found_key)
         then
-            return session
+            found_key = key
         end
     end
 
-    return nil
+    return found_key and SessionRegistry.sessions[found_key]
 end
 
 --- Visible here, else most recently visible. Never creates.

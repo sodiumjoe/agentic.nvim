@@ -79,6 +79,18 @@ Hidden replacements stay hidden. Without a source, the ready target is shown
 directly. Existing targets are reused, not reloaded or owned by the new
 transaction.
 
+**A dead attachment is reloaded into a new manager.** After a transport
+reconnect the source still holds its session id, so a load of that id would
+return the source itself. `SessionReplacementOpts.reattach` skips that match and
+sends a second `session/load` from a fresh manager; reusing the source is
+rejected below. The target's load subscribes the id, so destroying the source at
+commit is a no-op release. `find_by_acp_session_id` returns the holder with the
+highest session key, so lookups reach the target as soon as it starts loading.
+If the commit rolls back while the source is still registered, the registry
+calls `ACPClient:transfer_subscriber` to give the id back to the source's
+handlers before destroying the target. Without that, the target's release
+silenced the kept source and sent `session/cancel` for the session both share.
+
 **Restore creates no placeholder.** `SessionRestore` resolves the current
 manager's client or asks `AgentInstance` directly. Listing creates nothing.
 Selection loads one target unless that client already claims the ID. Title and
@@ -165,6 +177,18 @@ prompt to label `select_session` rows.
 - A release can be a silent no-op. When a successor owns the subscriber, or a
   failed load already cleared it, the provider receives no `session/cancel` from
   that teardown.
+- A reattach target that fails, or is destroyed before its commit, does not
+  hand the session back. A failed `session/load` leaves the kept source
+  unsubscribed: the target's load replaced the source's subscriber and the error
+  path cleared it. A target destroyed before its commit still owns the
+  subscriber, so its release also sends `session/cancel`, or whatever release a
+  subclass's `__request_params` builds, for the id it shares with the source,
+  and the source is left unsubscribed. Only the commit's rollback calls
+  `transfer_subscriber`. Callers should reattach only after the source's
+  attachment is already dead.
+- `reattach` with `retain_source` is unsupported. The target takes the source's
+  subscriber when its load starts, so a source kept past the commit stays
+  registered but receives no updates or permission prompts for its session.
 
 ## Rejected / superseded alternatives
 
@@ -194,6 +218,7 @@ prompt to label `select_session` rows.
 | 2026-08-09 | Replaced additive restore with atomic one-shot session replacement.                          |
 | 2026-08-21 | Made restore and `/new` ask for source lifecycle and require explicit destruction.           |
 | 2026-11-19 | Made `cancel_session` release a session only while the caller's handlers own its subscriber. |
+| 2026-11-19 | Added `reattach` to reload a session into a new manager, handing the id back on rollback.    |
 
 ## Sources
 

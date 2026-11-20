@@ -60,6 +60,10 @@ Current extension points:
 
 Only subclass or extend these when a real provider deviation requires it.
 
+Public methods that hand a session id between subscribers, `cancel_session` and
+`transfer_subscriber`, carry an ownership contract documented in
+`lua/agentic/acp/AGENTS.md`, section "A release MUST pass the caller's handlers".
+
 ## Provider quirks
 
 Handle protocol deviations inline in `__build_tool_call_message`.

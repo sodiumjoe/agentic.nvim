@@ -170,9 +170,9 @@ end
 --- @param handlers agentic.acp.ClientHandlers
 function ACPClient:_subscribe(session_id, handlers)
     -- One subscriber per session ID: a replacement reroutes every update and permission
-    -- prompt to the newer handlers. Legitimate on a reconnect replay, a defect when two
-    -- managers claim one ID. Logged, not blocked: refusing the write would strand a
-    -- reconnect's fresh handlers.
+    -- prompt to the newer handlers. Legitimate on a reconnect replay and for a reattach
+    -- target loading its source's ID (ADR 0008); otherwise a defect when two managers claim
+    -- one ID. Logged, not blocked: refusing the write would strand the fresh handlers.
     if
         self.subscribers[session_id]
         and self.subscribers[session_id] ~= handlers
@@ -1127,6 +1127,18 @@ function ACPClient:cancel_session(session_id, handlers)
     }, session_id)
 
     self:_send_notification("session/cancel", params)
+end
+
+--- Moves `session_id` to `to` only while `from` still owns its subscriber, sending nothing.
+--- A rolled-back reattach returns the id to the manager it was loaded from, so the target's
+--- release neither silences that manager nor cancels its session.
+--- @param session_id string
+--- @param from agentic.acp.ClientHandlers
+--- @param to agentic.acp.ClientHandlers
+function ACPClient:transfer_subscriber(session_id, from, to)
+    if self.subscribers[session_id] == from then
+        self.subscribers[session_id] = to
+    end
 end
 
 --- @return boolean connected
