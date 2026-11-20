@@ -7,6 +7,7 @@
 --- @field _replaying boolean
 --- @field _claimed_session_id? string
 --- @field _cancelled_session_ids table<string, boolean>
+--- @field _handlers? agentic.acp.ClientHandlers
 --- @field callback? fun(result: agentic.SessionStartResult|nil, err: agentic.acp.ACPError|nil)
 local SessionStartAttempt = {}
 SessionStartAttempt.__index = SessionStartAttempt
@@ -36,6 +37,7 @@ local function new_attempt(agent)
         _replaying = false,
         _claimed_session_id = nil,
         _cancelled_session_ids = {},
+        _handlers = nil,
         callback = nil,
     }, SessionStartAttempt)
 end
@@ -78,7 +80,7 @@ function SessionStartAttempt:_cancel_provider_session(session_id)
     end
 
     self._cancelled_session_ids[session_id] = true
-    self._agent:cancel_session(session_id)
+    self._agent:cancel_session(session_id, self._handlers)
 end
 
 --- @param spec agentic.SessionStartSpec
@@ -86,6 +88,7 @@ end
 --- @param callback fun(result: agentic.SessionStartResult|nil, err: agentic.acp.ACPError|nil)
 function SessionStartAttempt:start(spec, handlers, callback)
     self.callback = callback
+    self._handlers = handlers
 
     if spec.kind == "load" then
         self._claimed_session_id = spec.session_id

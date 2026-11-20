@@ -890,7 +890,9 @@ function ACPClient:_authenticate(method_id)
     end)
 end
 
---- Lets a subclass decorate outgoing session requests (ADR 0005). Called on the main loop.
+--- Lets a subclass decorate outgoing session requests (ADR 0005). Called on the main loop, except
+--- for `cancel_session`, which a late startup reply reaches in a fast event: no `vim.api`, `vim.fn`,
+--- `vim.v` or `vim.o` access there.
 --- @protected
 --- @param _method string
 --- @param params table
@@ -1103,19 +1105,28 @@ function ACPClient:stop_generation(session_id)
     self:_send_notification("session/cancel", params)
 end
 
---- Destroys the session, unlike `stop_generation`.
+--- Destroys the session, unlike `stop_generation`. With `handlers`, does nothing unless they
+--- still own the subscriber, so a predecessor's teardown cannot silence or cancel its successor
+--- on the same session id.
 --- @param session_id string
-function ACPClient:cancel_session(session_id)
+--- @param handlers? agentic.acp.ClientHandlers
+function ACPClient:cancel_session(session_id, handlers)
     if not session_id then
+        return
+    end
+
+    if handlers and self.subscribers[session_id] ~= handlers then
         return
     end
 
     -- Dropped first, so no further messages reach the old subscriber.
     self.subscribers[session_id] = nil
 
-    self:_send_notification("session/cancel", {
+    local params = self:__request_params("session/cancel", {
         sessionId = session_id,
-    })
+    }, session_id)
+
+    self:_send_notification("session/cancel", params)
 end
 
 --- @return boolean connected

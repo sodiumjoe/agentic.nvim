@@ -38,6 +38,27 @@ Regressions:
 - `lua/agentic/acp/acp_client.test.lua::"runs before pending callbacks are failed"`
 - `lua/agentic/acp/acp_client.test.lua::"fails pending callbacks when the hook throws"`
 
+## A release MUST pass the caller's handlers
+
+`ACPClient:cancel_session(session_id, handlers)` releases only while `handlers`
+are still `subscribers[session_id]`, and sends nothing when the id has no
+subscriber. Several managers can subscribe one session id in turn, the last
+write winning (`ACPClient:_subscribe`). A release without handlers drops
+whatever is subscribed: a predecessor's teardown then silences its successor
+and sends `session/cancel` for the successor's turn. Every teardown that owns a
+subscriber passes it.
+
+`SessionStartAttempt:_cancel_provider_session` can call `cancel_session` from a
+late startup reply in a fast event, so `__request_params("session/cancel", ...)`
+runs there too, and an override for that method falls under the fast-event ban
+in `lua/agentic/AGENTS.md`, section "Banned calls".
+
+Regressions:
+
+- `lua/agentic/acp/acp_client.test.lua::"keeps a subscriber the given handlers do not own"`
+- `lua/agentic/acp/acp_client.test.lua::"sends nothing for handlers when the id has no subscriber"`
+- `lua/agentic/session_manager.test.lua::"keeps the successor subscribed when a predecessor on its session id is destroyed"`
+
 ## Protocol contracts
 
 - `set_config_option(session_id, config_id, ...)` takes `ConfigOption.id`,

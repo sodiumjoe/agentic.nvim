@@ -1777,6 +1777,85 @@ describe("ACPClient", function()
                 assert.equal("sid-1", calls[2].context)
             end
         )
+
+        it("decorates the session/cancel that cancel_session sends", function()
+            local Sub, calls = meta_subclass()
+            local client = create_ready_client(nil, Sub)
+            local sent = capture_sent()
+
+            client:cancel_session("sid-1")
+
+            assert.equal(1, #sent)
+            assert.equal("session/cancel", sent[1].method)
+            assert.equal("sid-1", sent[1].params.sessionId)
+            assert.equal({ method = "session/cancel" }, sent[1].params._meta)
+            assert.equal("sid-1", calls[1].context)
+        end)
+    end)
+
+    describe("cancel_session", function()
+        --- @return agentic.acp.ClientHandlers handlers
+        local function new_handlers()
+            return {
+                on_session_update = function() end,
+                on_request_permission = function() end,
+                on_error = function() end,
+                on_tool_call = function() end,
+                on_tool_call_update = function() end,
+            }
+        end
+
+        it("keeps a subscriber the given handlers do not own", function()
+            local client = create_ready_client()
+            local owner = new_handlers()
+            local predecessor = new_handlers()
+            client.subscribers["s1"] = owner
+            local sent = capture_sent()
+
+            client:cancel_session("s1", predecessor)
+
+            assert.is_true(client.subscribers["s1"] == owner)
+            assert.equal(0, #sent)
+        end)
+
+        it("releases the subscriber the given handlers own", function()
+            local client = create_ready_client()
+            local owner = new_handlers()
+            client.subscribers["s1"] = owner
+            local sent = capture_sent()
+
+            client:cancel_session("s1", owner)
+
+            assert.is_nil(client.subscribers["s1"])
+            assert.equal(1, #sent)
+            assert.equal("session/cancel", sent[1].method)
+            assert.equal("s1", sent[1].params.sessionId)
+        end)
+
+        it("releases any subscriber when no handlers are given", function()
+            local client = create_ready_client()
+            client.subscribers["s1"] = new_handlers()
+            local sent = capture_sent()
+
+            client:cancel_session("s1")
+
+            assert.is_nil(client.subscribers["s1"])
+            assert.equal(1, #sent)
+            assert.equal("session/cancel", sent[1].method)
+        end)
+
+        it(
+            "sends nothing for handlers when the id has no subscriber",
+            function()
+                local client = create_ready_client()
+                local sent = capture_sent()
+
+                client:cancel_session("s1", new_handlers())
+
+                assert.is_nil(client.subscribers["s1"])
+                assert.equal(0, #sent)
+            end
+        )
     end)
 
     describe("__handle_request_permission", function()

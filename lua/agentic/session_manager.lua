@@ -39,6 +39,7 @@ local Hooks = require("agentic.utils.hooks")
 --- @field _on_new_session fun(session: agentic.SessionManager)
 --- @field _session_ready_callbacks fun(succeeded: boolean)[]
 --- @field pending_replacement_sources? table<any, boolean>
+--- @field handlers? agentic.acp.ClientHandlers Subscriber this manager registered; releases pass it to `cancel_session`
 local SessionManager = {}
 SessionManager.__index = SessionManager
 
@@ -848,7 +849,8 @@ function SessionManager:prepare_start(spec, is_replaying)
         )
     end
 
-    return self:_build_handlers(is_replaying), nil
+    self.handlers = self:_build_handlers(is_replaying)
+    return self.handlers, nil
 end
 
 --- Adopts or rejects the result of the manager's external startup attempt.
@@ -859,7 +861,7 @@ end
 function SessionManager:complete_start(spec, result, err, callback)
     if self._destroyed then
         if result then
-            self.agent:cancel_session(result.session_id)
+            self.agent:cancel_session(result.session_id, self.handlers)
         end
         if callback then
             callback(self, err)
@@ -1017,7 +1019,7 @@ function SessionManager:destroy()
 
     self._destroyed = true
     if self.session_id and self.agent and self.agent.cancel_session then
-        self.agent:cancel_session(self.session_id)
+        self.agent:cancel_session(self.session_id, self.handlers)
         self.session_id = nil
     end
     self.is_generating = false

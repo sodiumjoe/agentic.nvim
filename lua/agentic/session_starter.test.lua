@@ -40,6 +40,7 @@ describe("SessionStarter", function()
             create_calls = 0,
             load_calls = 0,
             cancelled = {},
+            cancel_handlers = {},
         }
 
         function agent:when_ready(on_ready, on_failure)
@@ -68,8 +69,9 @@ describe("SessionStarter", function()
             self.load_spec = spec
         end
 
-        function agent:cancel_session(session_id)
+        function agent:cancel_session(session_id, handlers)
             self.cancelled[#self.cancelled + 1] = session_id
+            self.cancel_handlers[#self.cancel_handlers + 1] = handlers
         end
 
         return agent
@@ -179,6 +181,7 @@ describe("SessionStarter", function()
                 assert.is_nil(adopted)
                 assert.equal(1, #agent.cancelled)
                 assert.equal(case.session_id, agent.cancelled[1])
+                assert.is_true(agent.cancel_handlers[1] == NOOP_HANDLERS)
             end
         )
     end
@@ -298,6 +301,7 @@ describe("SessionStarter", function()
                 assert.is_nil(adopted)
                 assert.equal(1, #agent.cancelled)
                 assert.equal(case.session_id, agent.cancelled[1])
+                assert.is_true(agent.cancel_handlers[1] == NOOP_HANDLERS)
             end
         )
     end

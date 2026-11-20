@@ -2777,6 +2777,7 @@ describe("agentic.SessionManager one-shot lifecycle", function()
             create_calls = 0,
             load_calls = 0,
             cancelled = {},
+            cancel_handlers = {},
             create_error = nil,
             load_error = nil,
         }
@@ -2804,8 +2805,9 @@ describe("agentic.SessionManager one-shot lifecycle", function()
             end
         end
 
-        function agent:cancel_session(session_id)
+        function agent:cancel_session(session_id, handlers)
             self.cancelled[#self.cancelled + 1] = session_id
+            self.cancel_handlers[#self.cancel_handlers + 1] = handlers
         end
 
         return agent
@@ -2885,6 +2887,60 @@ describe("agentic.SessionManager one-shot lifecycle", function()
             assert.equal(case.kind == "load" and 1 or 0, agent.load_calls)
         end)
     end
+
+    it(
+        "keeps the successor subscribed when a predecessor on its session id is destroyed",
+        function()
+            local ACPClient = require("agentic.acp.acp_client")
+            local agent = new_agent()
+            agent.subscribers = {}
+            agent.cancel_session = ACPClient.cancel_session
+            agent.__request_params = ACPClient.__request_params
+            agent.__with_subscriber = ACPClient.__with_subscriber
+            local sent = {}
+            function agent:_send_notification(method, params)
+                sent[#sent + 1] = { method = method, params = params }
+            end
+            function agent:load_session(id, _cwd, _servers, handlers, callback)
+                self.load_calls = self.load_calls + 1
+                self.subscribers[id] = handlers
+                callback({}, nil)
+            end
+            local predecessor = make_manager(agent)
+            local successor = make_manager(agent)
+            for _, manager in ipairs({ predecessor, successor }) do
+                start_test_manager(
+                    manager,
+                    { kind = "load", session_id = "s1" }
+                )
+                agent.ready_callback(agent)
+                flush_until(function()
+                    return manager.session_id ~= nil
+                end)
+            end
+            assert.equal("s1", predecessor.session_id)
+            assert.equal("s1", successor.session_id)
+            local update_stub = spy.stub(successor, "_on_session_update")
+
+            predecessor:destroy()
+            local delivered = false
+            agent:__with_subscriber("s1", function(subscriber)
+                subscriber.on_session_update({
+                    sessionUpdate = "agent_message_chunk",
+                    content = { type = "text", text = "still here" },
+                })
+                delivered = true
+            end)
+            flush_until(function()
+                return delivered
+            end)
+            update_stub:revert()
+
+            assert.equal(0, #sent)
+            assert.is_true(delivered)
+            assert.spy(update_stub).was.called(1)
+        end
+    )
 
     it("prefers config options over legacy load metadata", function()
         local agent = new_agent()
@@ -3171,6 +3227,29 @@ describe("agentic.SessionManager one-shot lifecycle", function()
         assert.spy(widget_destroy_stub).was.called(1)
         widget_destroy_stub:revert()
     end)
+
+    it(
+        "releases a result that lands after destroy with its own handlers",
+        function()
+            local agent = new_agent()
+            local manager = make_manager(agent)
+            local completed = false
+
+            start_test_manager(manager, { kind = "new" }, function()
+                completed = true
+            end)
+            agent.ready_callback(agent)
+            manager:destroy()
+            flush_until(function()
+                return completed
+            end)
+
+            assert.is_true(completed)
+            assert.same({ "new-id" }, agent.cancelled)
+            assert.is_not_nil(manager.handlers)
+            assert.is_true(agent.cancel_handlers[1] == manager.handlers)
+        end
+    )
 
     it("tears down owners without owning pending startup", function()
         local agent = new_agent()

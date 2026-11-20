@@ -1,7 +1,7 @@
 # 0008. Session-keyed ownership
 
 - Status: accepted
-- Last updated: 2026-08-21
+- Last updated: 2026-11-19
 - Related: PR #283, PR #261, issue #282
 
 ## Context
@@ -116,6 +116,16 @@ request outlives its session. Both liveness gates answer
 The registry cancels its start attempt before manager teardown. The attempt
 cancels a claimed provider session once and rejects late responses.
 
+**A release names its owner.** `ACPClient:cancel_session(session_id, handlers)`
+drops the subscriber and sends `session/cancel` only while `handlers` still own
+`subscribers[session_id]`; with no subscriber it sends nothing. Another manager
+can subscribe the same session id after this one, and the older manager's
+teardown used to silence the newer one and cancel its turn. `SessionManager`
+keeps its subscriber as `handlers` and `SessionStartAttempt` as `_handlers`;
+`SessionManager:destroy`, the destroyed branch of
+`SessionManager:complete_start` and `SessionStartAttempt:_cancel_provider_session`
+all pass them. A call without handlers keeps the unconditional release.
+
 **Destroying a session must not take a tabpage with it.** `ChatWidget:destroy`
 runs `_ensure_fallback_window` (shared with `hide`) in the widget's _own_
 tabpage before closing, and before `WidgetRegistry.unregister` — otherwise
@@ -152,6 +162,9 @@ prompt to label `select_session` rows.
   `focusable = false`, so window-counting assertions must filter on both.
 - Registry keys and tabpage handles are both integers and no longer
   interchangeable. Code conflating them looks correct and behaves wrongly.
+- A release can be a silent no-op. When a successor owns the subscriber, or a
+  failed load already cleared it, the provider receives no `session/cancel` from
+  that teardown.
 
 ## Rejected / superseded alternatives
 
@@ -180,6 +193,7 @@ prompt to label `select_session` rows.
 | 2026-07-30 | Clarified that the buffer-name key suffix is published per header render, not retroactively. |
 | 2026-08-09 | Replaced additive restore with atomic one-shot session replacement.                          |
 | 2026-08-21 | Made restore and `/new` ask for source lifecycle and require explicit destruction.           |
+| 2026-11-19 | Made `cancel_session` release a session only while the caller's handlers own its subscriber. |
 
 ## Sources
 
