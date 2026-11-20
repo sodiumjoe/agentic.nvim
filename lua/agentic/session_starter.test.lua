@@ -47,21 +47,25 @@ describe("SessionStarter", function()
             self.failure_callback = on_failure
         end
 
-        function agent:create_session(_handlers, callback)
+        function agent:create_session(_handlers, callback, _cwd, spec)
             self.create_calls = self.create_calls + 1
             self.create_callback = callback
+            self.create_spec = spec
         end
 
         function agent:load_session(
             session_id,
-            _cwd,
+            cwd,
             _servers,
             _handlers,
-            callback
+            callback,
+            spec
         )
             self.load_calls = self.load_calls + 1
             self.load_session_id = session_id
+            self.load_cwd = cwd
             self.load_callback = callback
+            self.load_spec = spec
         end
 
         function agent:cancel_session(session_id)
@@ -178,6 +182,59 @@ describe("SessionStarter", function()
             end
         )
     end
+
+    it("sends a load spec's own cwd", function()
+        local agent = new_agent()
+
+        SessionStarter.start(
+            agent,
+            { kind = "load", session_id = "load-id", cwd = "/abs/project" },
+            prepare(NOOP_HANDLERS),
+            function() end
+        )
+        agent.ready_callback(agent)
+
+        assert.equal("/abs/project", agent.load_cwd)
+    end)
+
+    it("sends the editor cwd for an empty load cwd", function()
+        local agent = new_agent()
+
+        SessionStarter.start(
+            agent,
+            { kind = "load", session_id = "load-id", cwd = "" },
+            prepare(NOOP_HANDLERS),
+            function() end
+        )
+        agent.ready_callback(agent)
+
+        assert.equal(vim.fn.getcwd(), agent.load_cwd)
+    end)
+
+    it("passes the start spec to both client calls", function()
+        local new_agent_instance = new_agent()
+        local new_spec = { kind = "new", meta = { box = "a" } }
+        SessionStarter.start(
+            new_agent_instance,
+            new_spec,
+            prepare(NOOP_HANDLERS),
+            function() end
+        )
+        new_agent_instance.ready_callback(new_agent_instance)
+
+        local load_agent = new_agent()
+        local load_spec = { kind = "load", session_id = "load-id" }
+        SessionStarter.start(
+            load_agent,
+            load_spec,
+            prepare(NOOP_HANDLERS),
+            function() end
+        )
+        load_agent.ready_callback(load_agent)
+
+        assert.is_true(new_agent_instance.create_spec == new_spec)
+        assert.is_true(load_agent.load_spec == load_spec)
+    end)
 
     it("cancels before readiness without sending a request", function()
         local agent = new_agent()

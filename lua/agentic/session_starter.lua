@@ -101,6 +101,7 @@ function SessionStartAttempt:start(spec, handlers, callback)
 
         self._request_sent = true
         if spec.kind == "new" then
+            local cwd_callback = spec.cwd --[[@as agentic.UserConfig.SessionCwdFn|nil]]
             self._agent:create_session(handlers, function(response, err)
                 if self._cancelled then
                     self:_cancel_provider_session(
@@ -123,12 +124,17 @@ function SessionStartAttempt:start(spec, handlers, callback)
                     response = response,
                 }
                 self:complete(result, nil)
-            end, spec.cwd)
+            end, cwd_callback, spec)
         else
             self._replaying = true
+            local spec_cwd = spec.cwd
+            local load_cwd = vim.fn.getcwd()
+            if type(spec_cwd) == "string" and spec_cwd ~= "" then
+                load_cwd = spec_cwd
+            end
             self._agent:load_session(
                 spec.session_id,
-                vim.fn.getcwd(),
+                load_cwd,
                 {},
                 handlers,
                 function(response, err)
@@ -150,7 +156,8 @@ function SessionStartAttempt:start(spec, handlers, callback)
                         response = response,
                     }
                     self:complete(result, nil)
-                end
+                end,
+                spec
             )
         end
     end, function(err)

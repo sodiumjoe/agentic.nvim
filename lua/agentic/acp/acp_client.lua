@@ -868,19 +868,32 @@ function ACPClient:_authenticate(method_id)
     end)
 end
 
+--- Lets a subclass decorate outgoing session requests (ADR 0005). Called on the main loop.
+--- @protected
+--- @param _method string
+--- @param params table
+--- @param _context agentic.SessionStartSpec|string|nil Start spec for session/new and session/load, session id otherwise
+--- @return table params
+function ACPClient:__request_params(_method, params, _context)
+    return params
+end
+
 --- @param handlers agentic.acp.ClientHandlers
 --- @param callback fun(result: agentic.acp.SessionCreationResponse|nil, err: agentic.acp.ACPError|nil)
 --- @param cwd_callback agentic.UserConfig.SessionCwdFn|nil
-function ACPClient:create_session(handlers, callback, cwd_callback)
+--- @param spec agentic.SessionStartSpec|nil
+function ACPClient:create_session(handlers, callback, cwd_callback, spec)
     local current_cwd = vim.fn.getcwd()
     local cwd = try_session_cwd(cwd_callback, current_cwd)
         or try_session_cwd(Config.acp_configs.session_cwd, current_cwd)
         or current_cwd
 
-    self:_send_request("session/new", {
+    local params = self:__request_params("session/new", {
         cwd = cwd,
         mcpServers = {},
-    }, function(result, err)
+    }, spec)
+
+    self:_send_request("session/new", params, function(result, err)
         if err then
             Logger.notify(
                 "Failed to create session: "
@@ -917,12 +930,14 @@ end
 --- @param mcp_servers table[]|nil
 --- @param handlers agentic.acp.ClientHandlers
 --- @param on_load_complete fun(result: agentic.acp.LoadSessionResponse|nil, err: agentic.acp.ACPError|nil)|nil
+--- @param spec agentic.SessionStartSpec|nil
 function ACPClient:load_session(
     session_id,
     cwd,
     mcp_servers,
     handlers,
-    on_load_complete
+    on_load_complete,
+    spec
 )
     if
         not self.agent_capabilities or not self.agent_capabilities.loadSession
@@ -942,11 +957,13 @@ function ACPClient:load_session(
 
     self:_subscribe(session_id, handlers)
 
-    self:_send_request("session/load", {
+    local params = self:__request_params("session/load", {
         sessionId = session_id,
         cwd = cwd,
         mcpServers = mcp_servers or {},
-    }, function(result, err)
+    }, spec)
+
+    self:_send_request("session/load", params, function(result, err)
         if not result and not err then
             err = self:__create_error(
                 self.ERROR_CODES.PROTOCOL_ERROR,
@@ -1012,10 +1029,10 @@ end
 --- @param prompt agentic.acp.Content[]
 --- @param callback fun(result: table|nil, err: agentic.acp.ACPError|nil)
 function ACPClient:send_prompt(session_id, prompt, callback)
-    local params = {
+    local params = self:__request_params("session/prompt", {
         sessionId = session_id,
         prompt = prompt,
-    }
+    }, session_id)
 
     self:_send_request("session/prompt", params, callback)
 end
@@ -1057,9 +1074,11 @@ function ACPClient:stop_generation(session_id)
         return
     end
 
-    self:_send_notification("session/cancel", {
+    local params = self:__request_params("session/cancel", {
         sessionId = session_id,
-    })
+    }, session_id)
+
+    self:_send_notification("session/cancel", params)
 end
 
 --- Destroys the session, unlike `stop_generation`.

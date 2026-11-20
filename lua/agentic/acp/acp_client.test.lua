@@ -65,8 +65,9 @@ describe("ACPClient", function()
     }
 
     --- @param agent_caps agentic.acp.AgentCapabilities|nil
+    --- @param client_class agentic.acp.ACPClient|nil
     --- @return agentic.acp.ACPClient client
-    local function create_ready_client(agent_caps)
+    local function create_ready_client(agent_caps, client_class)
         create_transport_stub:invokes(function(_config, callbacks)
             captured_on_state_change = callbacks.on_state_change
             captured_on_message = callbacks.on_message
@@ -98,7 +99,8 @@ describe("ACPClient", function()
             end
         end)
 
-        local client = ACPClient:new({ command = "test-agent" }, function() end)
+        local class = client_class or ACPClient
+        local client = class:new({ command = "test-agent" }, function() end)
 
         transport_send_stub:reset()
         transport_send_stub:invokes(function() end)
@@ -1564,6 +1566,96 @@ describe("ACPClient", function()
             assert.spy(received).was.called(1)
             assert.spy(logger_notify_stub).was.called(0)
         end)
+    end)
+
+    describe("__request_params", function()
+        --- @return agentic.acp.ACPClient class
+        --- @return { method: string, context: any }[] calls
+        local function meta_subclass()
+            local calls = {}
+            --- @class agentic.acp.MetaTestClient : agentic.acp.ACPClient
+            local Sub = setmetatable({}, { __index = ACPClient })
+            Sub.__index = Sub
+
+            function Sub:__request_params(method, params, context)
+                calls[#calls + 1] = { method = method, context = context }
+                params._meta = { method = method }
+                return params
+            end
+
+            return Sub, calls
+        end
+
+        it(
+            "lets a subclass add _meta to session/new and session/load",
+            function()
+                local Sub, calls = meta_subclass()
+                local client = create_ready_client(LOAD_CAPS, Sub)
+                local sent = capture_sent()
+                --- @type agentic.SessionStartSpec
+                local new_spec = { kind = "new" }
+                --- @type agentic.SessionStartSpec
+                local load_spec = { kind = "load", session_id = "sid-1" }
+
+                client:create_session(
+                    NOOP_HANDLERS,
+                    function() end,
+                    nil,
+                    new_spec
+                )
+                client:load_session(
+                    "sid-1",
+                    "/tmp",
+                    {},
+                    NOOP_HANDLERS,
+                    nil,
+                    load_spec
+                )
+
+                assert.equal(2, #sent)
+                assert.equal("session/new", sent[1].method)
+                assert.equal({ method = "session/new" }, sent[1].params._meta)
+                assert.equal("session/load", sent[2].method)
+                assert.equal({ method = "session/load" }, sent[2].params._meta)
+                assert.equal("sid-1", sent[2].params.sessionId)
+                assert.is_true(calls[1].context == new_spec)
+                assert.is_true(calls[2].context == load_spec)
+            end
+        )
+
+        it(
+            "lets a subclass decorate session/prompt and session/cancel",
+            function()
+                local Sub, calls = meta_subclass()
+                local client = create_ready_client(nil, Sub)
+                local sent = capture_sent()
+
+                client:send_prompt(
+                    "sid-1",
+                    { { type = "text", text = "hi" } },
+                    function() end
+                )
+                client:stop_generation("sid-1")
+
+                assert.equal(2, #sent)
+                assert.equal("sid-1", sent[1].params.sessionId)
+                assert.equal(
+                    { { type = "text", text = "hi" } },
+                    sent[1].params.prompt
+                )
+                assert.equal("sid-1", sent[2].params.sessionId)
+                assert.equal(
+                    { method = "session/prompt" },
+                    sent[1].params._meta
+                )
+                assert.equal(
+                    { method = "session/cancel" },
+                    sent[2].params._meta
+                )
+                assert.equal("sid-1", calls[1].context)
+                assert.equal("sid-1", calls[2].context)
+            end
+        )
     end)
 
     describe("__handle_request_permission", function()

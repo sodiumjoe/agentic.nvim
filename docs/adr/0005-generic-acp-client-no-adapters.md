@@ -20,7 +20,10 @@ A single generic `ACPClient` handles every provider. Provider quirks are
 absorbed inline in `ACPClient.__build_tool_call_message` and a few sibling
 protected methods (`__handle_tool_call`, `__handle_tool_call_update`,
 `__handle_request_permission`, `__handle_session_update`). Each quirk carries
-an inline comment naming the provider that needs it.
+an inline comment naming the provider that needs it. `__request_params` lets a
+subclass decorate outgoing `session/new`, `session/load`, `session/prompt` and
+`session/cancel` params, for example with `_meta`; the base returns them
+unchanged.
 
 Adding a new provider requires only a config entry under
 `Config.acp_providers`. No adapter file is created unless the provider
@@ -48,9 +51,9 @@ deviates from ACP in ways not yet handled by `ACPClient`.
 
 ## Changelog
 
-| Date       | Change                                                                  |
-| ---------- | ----------------------------------------------------------------------- |
-| 2026-11-19 | Added `client_class` so a provider can supply its `ACPClient` subclass. |
-| 2026-05-16 | Initial decision recorded (post-hoc).                                   |
-| 2026-03-20 | Removed per-provider adapter modules; inlined quirks in `ACPClient`.    |
-| 2025-12-19 | (Superseded) Introduced dedicated per-provider adapter modules.         |
+| Date       | Change                                                                                                                                         |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-19 | Added `client_class` so a provider can supply its `ACPClient` subclass, and the protected `__request_params` seam for outgoing session params. |
+| 2026-05-16 | Initial decision recorded (post-hoc).                                                                                                          |
+| 2026-03-20 | Removed per-provider adapter modules; inlined quirks in `ACPClient`.                                                                           |
+| 2025-12-19 | (Superseded) Introduced dedicated per-provider adapter modules.                                                                                |
