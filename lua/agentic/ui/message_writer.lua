@@ -102,6 +102,22 @@ function MessageWriter:reset_sender_tracking()
     self:_clear_thinking_state()
 end
 
+--- Ends the current thinking block when no further write will, e.g. a turn that ended elsewhere.
+function MessageWriter:finish_thinking()
+    if
+        not self._thinking_extmark_id
+        or not vim.api.nvim_buf_is_valid(self.bufnr)
+    then
+        return
+    end
+    self:_capture_scroll(self.bufnr)
+    self:_clear_thinking_state()
+    BufHelpers.with_modifiable(self.bufnr, function()
+        self:_append_lines({ "" })
+    end)
+    self:_apply_scroll(self.bufnr)
+end
+
 --- Clears thinking block tracking state.
 --- Called when a non-thought write breaks the thinking flow.
 function MessageWriter:_clear_thinking_state()
@@ -337,8 +353,11 @@ function MessageWriter:write_message_chunk(update)
         and update.sessionUpdate == "agent_message_chunk"
     then
         -- Different message type, add newline before appending, to create visual separation
-        -- only for thought -> message
-        text = "\n\n" .. text
+        -- only for thought -> message. One fewer when the buffer already ends on a blank line,
+        -- as after `finish_thinking`, so exactly one blank line separates them.
+        local last_line =
+            vim.api.nvim_buf_get_lines(self.bufnr, -2, -1, false)[1]
+        text = (last_line == "" and "\n" or "\n\n") .. text
     end
 
     self._last_message_type = update.sessionUpdate

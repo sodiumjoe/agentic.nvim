@@ -2516,6 +2516,39 @@ describe("agentic.ui.MessageWriter", function()
             assert.equal(foldclosed(answer_lnum), -1)
         end)
 
+        it("folds a thinking block that finish_thinking ends", function()
+            writer:write_message_chunk(make_thought_update("one\ntwo\nthree"))
+            local start_lnum = first_thought_lnum()
+            local before = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+
+            writer:finish_thinking()
+
+            assert.equal(foldclosed(start_lnum), start_lnum)
+            assert.equal(foldclosed(start_lnum + 2), start_lnum)
+            local after = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+            assert.equal(#before + 1, #after)
+            assert.equal("", after[#after])
+            assert.same(before, vim.list_slice(after, 1, #before))
+            assert.equal(foldclosed(#after), -1)
+
+            writer:write_message_chunk(make_update("answer"))
+
+            local final = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+            assert.same(
+                { before[#before], "", "answer" },
+                vim.list_slice(final, #before)
+            )
+        end)
+
+        it("does nothing when finish_thinking has no open thought", function()
+            writer:write_message_chunk(make_update("answer"))
+            local before = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+
+            writer:finish_thinking()
+
+            assert.same(before, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+        end)
+
         it("folds replayed thoughts", function()
             writer:replay_history_messages({
                 { type = "thought", text = "a\nb\nc" },

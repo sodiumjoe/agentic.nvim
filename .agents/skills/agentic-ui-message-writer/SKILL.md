@@ -120,13 +120,16 @@ in `NS_PENDING_THOUGHT_FOLDS`, and replay queues restored thoughts the same way.
 `_fold_pending_thoughts` closes them on the next `_apply_scroll` (replay also
 calls it at its end), but only once
 the buffer is shown in a window, because folds are per window; until then they
-stay queued. `destroy` discards the queue. `folding.thinking.enabled` gates the
+stay queued. `finish_thinking` ends the open thought for a caller whose turn
+produces no further write (it appends one blank line). `destroy` discards the
+queue. `folding.thinking.enabled` gates the
 feature through `Fold.enabled()`, and `Fold.foldtext` labels the fold
 `Thinking · N lines` (`1 line` for one).
 
 Pinned by, in `lua/agentic/ui/message_writer.test.lua`:
 `::"folds a thinking block when an agent message ends it"`,
 `::"folds replayed thoughts"`,
+`::"folds a thinking block that finish_thinking ends"`,
 `::"does not fold thinking when the option is off"`; in
 `lua/agentic/ui/tool_call_fold.test.lua`:
 `::"labels a fold that starts on a thinking block"`,
