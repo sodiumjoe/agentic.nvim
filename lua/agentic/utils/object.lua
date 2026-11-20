@@ -4,7 +4,11 @@ local M = {}
 function M.deep_merge_into(target, ...)
     for _, source in ipairs({ ... }) do
         for k, v in pairs(source) do
-            if type(v) == "table" and type(target[k]) == "table" then
+            if
+                type(v) == "table"
+                and type(target[k]) == "table"
+                and getmetatable(v) == nil
+            then
                 M.deep_merge_into(target[k], v)
             else
                 target[k] = v

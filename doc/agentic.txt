@@ -250,7 +250,8 @@ acp_providers ~
 
   Customize built-in providers or add new ACP-compatible providers.
   Each entry supports: `name`, `command`, `args`, `env`,
-  `default_mode`, `initial_model`, `default_thought_level`.
+  `default_mode`, `initial_model`, `default_thought_level`,
+  `client_class`.
 
   `default_mode`   Start every session in this mode (e.g.,
                    `"bypassPermissions"`). Use <S-Tab> in the
@@ -270,6 +271,9 @@ acp_providers ~
                    completes, so it validates against the new model's
                    options (some providers, e.g. Claude, expose
                    different effort levels per model).
+  `client_class`   Type: `table|nil`. A subclass of `ACPClient` to
+                   construct for this provider instead of `ACPClient`,
+                   to override its protected methods.
 
 >lua
   --- @type agentic.PartialUserConfig

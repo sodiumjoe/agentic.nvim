@@ -392,3 +392,4 @@
 --- @field default_mode? string Default mode ID to set on session creation
 --- @field initial_model? string Default model ID to set on session creation. When also setting default_thought_level, the thought level is applied AFTER the model change response (because effort/thought_level options can be model-dependent, e.g. Claude rebuilds them on model switch).
 --- @field default_thought_level? string Default thought_level / effort value to set on session creation. Validated against the model's options. If `initial_model` is also set, applied after the model change completes.
+--- @field client_class? agentic.acp.ACPClient Subclass of ACPClient to construct for this provider (ADR 0005)

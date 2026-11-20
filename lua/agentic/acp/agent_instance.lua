@@ -52,7 +52,8 @@ function AgentInstance.get_instance(provider_name, on_ready)
         "Creating new ACP agent instance for provider: " .. provider_name
     )
 
-    client = ACPClient:new(config, on_ready or function() end)
+    local Class = config.client_class or ACPClient
+    client = Class:new(config, on_ready or function() end)
     AgentInstance._instances[provider_name] = client
 
     return client

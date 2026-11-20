@@ -1,7 +1,7 @@
 # 0005. Generic ACPClient, no per-provider adapters
 
 - Status: accepted
-- Last updated: 2026-05-16
+- Last updated: 2026-11-19
 - Related: PR #162, PR #14
 
 ## Context
@@ -33,6 +33,9 @@ deviates from ACP in ways not yet handled by `ACPClient`.
   be located and revisited.
 - The protected methods are the public extension point for subclasses if a
   future provider truly cannot be handled inline. None override them today.
+  A subclass is installed per provider with `client_class` in its
+  `Config.acp_providers` entry; `AgentInstance` constructs that class instead
+  of `ACPClient`.
 - Provider conformance to ACP is the path of least resistance; non-conforming
   providers visibly add to one file rather than hide behind their own module.
 
@@ -45,8 +48,9 @@ deviates from ACP in ways not yet handled by `ACPClient`.
 
 ## Changelog
 
-| Date       | Change                                                               |
-| ---------- | -------------------------------------------------------------------- |
-| 2026-05-16 | Initial decision recorded (post-hoc).                                |
-| 2026-03-20 | Removed per-provider adapter modules; inlined quirks in `ACPClient`. |
-| 2025-12-19 | (Superseded) Introduced dedicated per-provider adapter modules.      |
+| Date       | Change                                                                  |
+| ---------- | ----------------------------------------------------------------------- |
+| 2026-11-19 | Added `client_class` so a provider can supply its `ACPClient` subclass. |
+| 2026-05-16 | Initial decision recorded (post-hoc).                                   |
+| 2026-03-20 | Removed per-provider adapter modules; inlined quirks in `ACPClient`.    |
+| 2025-12-19 | (Superseded) Introduced dedicated per-provider adapter modules.         |

@@ -375,6 +375,8 @@ by configuring the `acp_providers` property:
   creation (e.g., `"haiku"`)
 - `default_thought_level` (string, optional) - Default thought effort level to
   apply on session creation (e.g., `"high"`, `"max"` for Claude)
+- `client_class` (table, optional) - A subclass of `ACPClient` to construct for
+  this provider instead of `ACPClient`, to override its protected methods
 
 > [!NOTE]  
 > Customizing a provider only requires specifying the fields you want to

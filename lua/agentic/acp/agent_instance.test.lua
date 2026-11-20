@@ -119,6 +119,35 @@ describe("agentic.acp.AgentInstance", function()
         assert.spy(on_ready).was.called(2)
     end)
 
+    it(
+        "constructs the provider's client class when one is configured",
+        function()
+            local constructed = spy.new(function(_self, config, on_ready)
+                local client = {
+                    provider_config = config,
+                    state = "ready",
+                    subclass = true,
+                }
+                on_ready(client)
+                return client
+            end)
+            package.loaded["agentic.config"].acp_providers["codex-acp"].client_class =
+                {
+                    new = constructed,
+                }
+
+            local client = AgentInstance.get_instance(
+                "codex-acp",
+                function() end
+            )
+
+            assert.is_not_nil(client)
+            assert.equal(true, (client --[[@as table]]).subclass)
+            assert.equal(1, constructed.call_count)
+            assert.equal(0, client_new_spy.call_count)
+        end
+    )
+
     it("returns a cached client without constructing another", function()
         local first = AgentInstance.get_instance("codex-acp", function() end)
         client_new_spy:reset()

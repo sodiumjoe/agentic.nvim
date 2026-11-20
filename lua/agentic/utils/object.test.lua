@@ -128,6 +128,36 @@ describe("object utils", function()
         end
     )
 
+    it("keeps a class table by reference across repeated merges", function()
+        local Parent = {}
+        Parent.__index = Parent
+        local Class = setmetatable({}, { __index = Parent })
+        Class.__index = Class
+
+        local config = { acp_providers = { custom = { name = "custom" } } }
+        local user_config = {
+            acp_providers = { custom = { client_class = Class } },
+        }
+
+        local first_ok, first_err = pcall(
+            Object.merge_config,
+            ---@diagnostic disable-next-line: param-type-mismatch
+            config,
+            user_config
+        )
+        local second_ok, second_err = pcall(
+            Object.merge_config,
+            ---@diagnostic disable-next-line: param-type-mismatch
+            config,
+            user_config
+        )
+
+        assert.equal({ first_ok, first_err }, { true, config })
+        assert.equal(second_ok, true)
+        assert.is_true(second_err == config)
+        assert.is_true(config.acp_providers.custom.client_class == Class)
+    end)
+
     describe("handles nil gracefully", function()
         it("handles nil for keymaps", function()
             local default_config = {
