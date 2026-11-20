@@ -25,6 +25,9 @@ subclass decorate outgoing `session/new`, `session/load`, `session/prompt` and
 `session/cancel` params, for example with `_meta`; the base returns them
 unchanged. `__handle_unknown_method` receives the message's `params` with its
 id and method, so a subclass can handle a vendor extension method.
+`__on_state_change` receives the old and new connection state on each real
+transition, before pending callbacks and ready listeners are failed, so a
+subclass can mark its sessions unavailable first; the base does nothing.
 
 Adding a new provider requires only a config entry under
 `Config.acp_providers`. No adapter file is created unless the provider
@@ -54,6 +57,7 @@ deviates from ACP in ways not yet handled by `ACPClient`.
 
 | Date       | Change                                                                                                                                         |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-19 | Added the protected `__on_state_change` hook, called on each real connection state transition before the drains.                               |
 | 2026-11-19 | `__handle_unknown_method` receives the message's `params`, so a subclass can handle vendor extension methods.                                  |
 | 2026-11-19 | Added `client_class` so a provider can supply its `ACPClient` subclass, and the protected `__request_params` seam for outgoing session params. |
 | 2026-05-16 | Initial decision recorded (post-hoc).                                                                                                          |

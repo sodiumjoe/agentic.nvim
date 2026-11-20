@@ -256,7 +256,17 @@ end
 
 --- @param state agentic.acp.ClientConnectionState
 function ACPClient:_set_state(state)
+    local previous = self.state
     self.state = state
+    if previous ~= state then
+        local ok, err = pcall(self.__on_state_change, self, previous, state)
+        if not ok then
+            Logger.notify(
+                "[Agentic] __on_state_change failed: " .. tostring(err),
+                vim.log.levels.ERROR
+            )
+        end
+    end
 
     if state == "disconnected" or state == "error" then
         self:_drain_pending_callbacks(state)
@@ -265,6 +275,17 @@ function ACPClient:_set_state(state)
         self:_drain_ready_listeners(nil)
     end
 end
+
+--- Called on every state transition, before pending callbacks and ready listeners are drained.
+--- Also runs inside `ACPClient.new`, from `_connect` (to connecting, connected and initializing,
+--- or to error on a spawn failure), before a subclass constructor has set its own fields.
+--- May run in a fast event (process exit, read errors, initialize replies): no `vim.api`, `vim.fn`,
+--- `vim.v` or `vim.o` access; update Lua state synchronously and vim.schedule any UI work.
+--- Must not throw: `_set_state` calls it under pcall and reports a failure, but do not rely on it.
+--- @protected
+--- @param _old agentic.acp.ClientConnectionState
+--- @param _new agentic.acp.ClientConnectionState
+function ACPClient:__on_state_change(_old, _new) end
 
 --- @param failure_reason string|nil
 function ACPClient:_drain_ready_listeners(failure_reason)

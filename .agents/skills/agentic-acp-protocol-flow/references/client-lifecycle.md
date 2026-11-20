@@ -39,6 +39,10 @@ no test. Add one before changing either.
   `create_session`, and `load_session` can hang forever when the provider dies.
 - `when_ready` callbacks registered before ready flush at the transition.
 - `when_ready` callbacks registered after ready still run via `vim.schedule`.
+- `__on_state_change` runs on each real transition before both drains, may run
+  in a fast event, and is `pcall`-guarded: a throwing override is reported and
+  the drains still run. Regression:
+  `lua/agentic/acp/acp_client.test.lua::"fails pending callbacks when the hook throws"`.
 
 ## Sync vs async dispatch
 

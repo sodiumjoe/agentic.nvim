@@ -7,6 +7,37 @@ Adding a provider is a config entry under `acp_providers` in
 `lua/agentic/config_default.lua`. Runtime flow, lifecycle, and framing: skill
 `agentic-acp-protocol-flow`.
 
+## `__on_state_change` runs in a fast event
+
+`ACPClient:_set_state` calls the protected `__on_state_change(old, new)` once
+per real transition, a repeated state excluded, and BEFORE it fails pending
+callbacks and ready listeners. A subclass marks its sessions unavailable there,
+so their pending prompt callbacks see a dead attachment when they run with
+`TRANSPORT_ERROR`.
+
+`_set_state` runs in a libuv fast event on process exit, transport read errors
+and the `initialize` reply. An override MUST NOT touch `vim.api`, `vim.fn`,
+`vim.v` or `vim.o` there, not only `nvim_*` calls (see "Banned calls" in
+`lua/agentic/AGENTS.md`): update Lua state synchronously and `vim.schedule` any
+UI work.
+
+The hook also fires during construction. `ACPClient.new` calls `_connect`,
+which moves the client to `connecting`, `connected` and `initializing`, or to
+`error` when the spawn fails, before `new` returns. A subclass constructor that
+calls the parent `new` and then sets its own fields has not set them yet when
+those calls arrive: the override must tolerate missing fields.
+
+An override MUST NOT throw. `_set_state` calls it under `pcall` and reports a
+failure with `Logger.notify`, so a throw no longer skips the drains and
+strands pending callbacks, but the guard is a safety net, not a contract to
+rely on.
+
+Regressions:
+
+- `lua/agentic/acp/acp_client.test.lua::"reports a repeated state once"`
+- `lua/agentic/acp/acp_client.test.lua::"runs before pending callbacks are failed"`
+- `lua/agentic/acp/acp_client.test.lua::"fails pending callbacks when the hook throws"`
+
 ## Protocol contracts
 
 - `set_config_option(session_id, config_id, ...)` takes `ConfigOption.id`,

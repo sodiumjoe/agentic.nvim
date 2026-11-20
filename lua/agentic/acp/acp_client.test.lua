@@ -1222,6 +1222,101 @@ describe("ACPClient", function()
         end)
     end)
 
+    describe("__on_state_change", function()
+        it("reports a repeated state once", function()
+            --- @class agentic.acp.StateChangeTestClient : agentic.acp.ACPClient
+            local Sub = setmetatable({}, { __index = ACPClient })
+            Sub.__index = Sub
+            --- @type string[][]
+            local calls = {}
+
+            function Sub:__on_state_change(old, new)
+                calls[#calls + 1] = { old, new }
+            end
+
+            create_ready_client(nil, Sub)
+            calls = {}
+            local on_state_change = captured_on_state_change
+            assert.is_not_nil(on_state_change)
+            --- @cast on_state_change -nil
+
+            on_state_change("disconnected")
+            on_state_change("disconnected")
+
+            assert.same({ { "ready", "disconnected" } }, calls)
+        end)
+
+        it("runs before pending callbacks are failed", function()
+            --- @class agentic.acp.StateChangeOrderTestClient : agentic.acp.ACPClient
+            local Sub = setmetatable({}, { __index = ACPClient })
+            Sub.__index = Sub
+            local marked = false
+
+            function Sub:__on_state_change(_old, new)
+                if new == "disconnected" then
+                    marked = true
+                end
+            end
+
+            local client = create_ready_client(nil, Sub)
+            --- @type boolean|nil
+            local marked_when_failed
+            client:send_prompt("sid-1", {}, function()
+                marked_when_failed = marked
+            end)
+            schedule_stub = spy.stub(vim, "schedule")
+            schedule_stub:invokes(function(fn)
+                fn()
+            end)
+            local on_state_change = captured_on_state_change
+            assert.is_not_nil(on_state_change)
+            --- @cast on_state_change -nil
+
+            on_state_change("disconnected")
+
+            assert.is_true(marked_when_failed)
+        end)
+
+        it("fails pending callbacks when the hook throws", function()
+            --- @class agentic.acp.ThrowingStateChangeTestClient : agentic.acp.ACPClient
+            local Sub = setmetatable({}, { __index = ACPClient })
+            Sub.__index = Sub
+
+            function Sub:__on_state_change(_old, new)
+                if new == "disconnected" then
+                    error("hook failed")
+                end
+            end
+
+            local client = create_ready_client(nil, Sub)
+            --- @type agentic.acp.ACPError|nil
+            local received_err
+            client:send_prompt("sid-1", {}, function(_result, err)
+                received_err = err
+            end)
+            schedule_stub = spy.stub(vim, "schedule")
+            schedule_stub:invokes(function(fn)
+                fn()
+            end)
+            local on_state_change = captured_on_state_change
+            assert.is_not_nil(on_state_change)
+            --- @cast on_state_change -nil
+
+            local ok = pcall(on_state_change, "disconnected")
+
+            assert.is_true(ok)
+            assert.is_not_nil(received_err)
+            --- @cast received_err agentic.acp.ACPError
+            assert.equal(
+                ACPClient.ERROR_CODES.TRANSPORT_ERROR,
+                received_err.code
+            )
+            assert.spy(logger_notify_stub).was.called(1)
+            local notified = logger_notify_stub.calls[1][1]
+            assert.truthy(notified:find("hook failed", 1, true))
+        end)
+    end)
+
     describe("__with_subscriber", function()
         it("delivers to a subscriber that is still registered", function()
             local client = create_ready_client()
