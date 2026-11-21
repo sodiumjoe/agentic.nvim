@@ -156,7 +156,10 @@ widget's windows from a hidden state closes every window in its tabpage that
 still shows that buffer, unnamed, unmodified and a single empty line. A `show`
 that reuses visible windows, including `rerender`, reclaims nothing. A
 fallback the user typed into or replaced is kept. Other positions keep the
-oldfile fallback. Regressions:
+oldfile fallback. The same scratch is the replacement anchor for a `stacked`
+source that has no non-widget window: `SessionRegistry.replace` asks the
+public `ChatWidget:ensure_fallback_window` for it, and the target's `show`
+reclaims it inside the `nvim_win_call`, so the tab stays widget-only. Regressions:
 `chat_widget.test.lua::"leaves an empty marked scratch when a stacked widget hides"`,
 `::"reclaims the untouched scratch when a stacked widget shows"`,
 `::"keeps a scratch the user typed into"`,
@@ -233,15 +236,16 @@ prompt to label `select_session` rows.
 
 ## Changelog
 
-| Date       | Change                                                                                       |
-| ---------- | -------------------------------------------------------------------------------------------- |
-| 2026-07-25 | Initial decision: ownership keyed by session, placement derived from the widget.             |
-| 2026-07-30 | Clarified that the buffer-name key suffix is published per header render, not retroactively. |
-| 2026-08-09 | Replaced additive restore with atomic one-shot session replacement.                          |
-| 2026-08-21 | Made restore and `/new` ask for source lifecycle and require explicit destruction.           |
-| 2026-11-19 | Made `cancel_session` release a session only while the caller's handlers own its subscriber. |
-| 2026-11-19 | Added `reattach` to reload a session into a new manager, handing the id back on rollback.    |
-| 2026-11-20 | A widget-only `stacked` tab falls back to an empty scratch the next `stacked` show reclaims. |
+| Date       | Change                                                                                         |
+| ---------- | ---------------------------------------------------------------------------------------------- |
+| 2026-07-25 | Initial decision: ownership keyed by session, placement derived from the widget.               |
+| 2026-07-30 | Clarified that the buffer-name key suffix is published per header render, not retroactively.   |
+| 2026-08-09 | Replaced additive restore with atomic one-shot session replacement.                            |
+| 2026-08-21 | Made restore and `/new` ask for source lifecycle and require explicit destruction.             |
+| 2026-11-19 | Made `cancel_session` release a session only while the caller's handlers own its subscriber.   |
+| 2026-11-19 | Added `reattach` to reload a session into a new manager, handing the id back on rollback.      |
+| 2026-11-20 | A widget-only `stacked` tab falls back to an empty scratch the next `stacked` show reclaims.   |
+| 2026-11-20 | A `stacked` source with no non-widget window is replaced through the same reclaimable scratch. |
 
 ## Sources
 

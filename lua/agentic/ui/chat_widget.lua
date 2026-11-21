@@ -327,6 +327,37 @@ function ChatWidget:_ensure_fallback_window(tabpage)
         return nil
     end
 
+    return self:_create_fallback_window(tabpage)
+end
+
+--- Gives `SessionRegistry` replacement an anchor in a tab with no window
+--- `find_first_non_widget_window` accepts. Creates one even beside a quickfix
+--- or help window, which `_ensure_fallback_window` counts as enough to keep the
+--- tab alive but which is no anchor.
+--- @param tabpage integer|nil
+--- @return integer|nil winid
+function ChatWidget:ensure_fallback_window(tabpage)
+    if tabpage and not vim.api.nvim_tabpage_is_valid(tabpage) then
+        return nil
+    end
+
+    tabpage = tabpage or self:get_visible_tab_id()
+
+    if not tabpage then
+        return nil
+    end
+
+    local existing = self:find_first_non_widget_window(tabpage)
+    if existing then
+        return existing
+    end
+
+    return self:_create_fallback_window(tabpage)
+end
+
+--- @param tabpage integer
+--- @return integer|nil winid
+function ChatWidget:_create_fallback_window(tabpage)
     --- @type integer|nil
     local winid
     if self.current_position == "stacked" then

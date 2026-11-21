@@ -2060,6 +2060,180 @@ describe("agentic.SessionRegistry one-shot lifecycle", function()
         assert.same({ "target:start", "target:destroy" }, events)
     end)
 
+    describe("a stacked source alone in its tab", function()
+        local Config
+        local ChatWidget
+        local original_position
+        --- @type table<integer, boolean>
+        local baseline_bufs
+        --- @type integer
+        local tabpage
+
+        --- @param tab integer
+        --- @return integer[]
+        local function non_widget_wins(tab)
+            local result = {}
+            for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(tab)) do
+                if
+                    vim.api.nvim_win_get_config(winid).relative == ""
+                    and not vim.w[winid].agentic_bufnr
+                then
+                    result[#result + 1] = winid
+                end
+            end
+            return result
+        end
+
+        --- @param label string
+        --- @return agentic.SessionManager
+        local function widget_session(label)
+            local session = new_session(label)
+            session.widget = ChatWidget:new(function()
+                return true
+            end)
+            local destroy = session.destroy
+            function session:destroy()
+                destroy(self)
+                self.widget:destroy()
+            end
+            return session
+        end
+
+        --- @return agentic.SessionManager source
+        local function visible_source()
+            local source = widget_session("source")
+            source.session_key = 40
+            source.widget.session_key = 40
+            SessionRegistry.sessions[40] = source
+            source.widget:show({ focus_prompt = false })
+            for _, winid in ipairs(non_widget_wins(tabpage)) do
+                vim.api.nvim_win_close(winid, true)
+            end
+            return source
+        end
+
+        before_each(function()
+            Config = require("agentic.config")
+            ChatWidget = require("agentic.ui.chat_widget")
+            original_position = Config.windows.position
+            Config.windows.position = "stacked"
+            baseline_bufs = {}
+            for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+                baseline_bufs[bufnr] = true
+            end
+            new_stub:invokes(function(_self, agent, provider_name)
+                local session = widget_session("target")
+                session.agent = agent
+                session.provider_name = provider_name
+                return session
+            end)
+            vim.cmd("tabnew")
+            tabpage = vim.api.nvim_get_current_tabpage()
+        end)
+
+        after_each(function()
+            for _, session in ipairs(sessions) do
+                if not session.destroyed then
+                    pcall(function()
+                        session.widget:destroy()
+                    end)
+                end
+            end
+            for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
+                if not baseline_tabs[tab] then
+                    vim.cmd(
+                        "tabclose! " .. vim.api.nvim_tabpage_get_number(tab)
+                    )
+                end
+            end
+            for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+                if not baseline_bufs[bufnr] then
+                    pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+                end
+            end
+            Config.windows.position = original_position
+        end)
+
+        it("commits a replacement into the same tab", function()
+            local source = visible_source()
+            assert.same({}, non_widget_wins(tabpage))
+
+            local target = SessionRegistry.replace(
+                source,
+                "claude-acp",
+                { kind = "new" },
+                { agent = new_agent("Injected") }
+            )
+            target.ready_callback(target)
+
+            assert.is_nil(SessionRegistry.get(40))
+            assert.is_true(source.destroyed)
+            assert.equal(target, SessionRegistry.get(target.session_key))
+            assert.equal(tabpage, target.widget:get_visible_tab_id())
+            assert.equal(tabpage, vim.api.nvim_get_current_tabpage())
+            assert.same({}, non_widget_wins(tabpage))
+        end)
+
+        it("keeps a retained source hidden", function()
+            local source = visible_source()
+
+            local target = SessionRegistry.replace(
+                source,
+                "claude-acp",
+                { kind = "new" },
+                { agent = new_agent("Injected"), retain_source = true }
+            )
+            target.ready_callback(target)
+
+            assert.equal(source, SessionRegistry.get(40))
+            assert.is_nil(source.destroyed)
+            assert.is_nil(source.widget:get_visible_tab_id())
+            assert.equal(tabpage, target.widget:get_visible_tab_id())
+            assert.same({}, non_widget_wins(tabpage))
+        end)
+
+        it("commits beside a quickfix window", function()
+            local source = visible_source()
+            vim.cmd("copen")
+            local quickfix = vim.api.nvim_get_current_win()
+            assert.equal(
+                "qf",
+                vim.bo[vim.api.nvim_win_get_buf(quickfix)].filetype
+            )
+            assert.is_nil(source.widget:find_first_non_widget_window(tabpage))
+
+            local target = SessionRegistry.replace(
+                source,
+                "claude-acp",
+                { kind = "new" },
+                { agent = new_agent("Injected") }
+            )
+            target.ready_callback(target)
+
+            assert.is_nil(SessionRegistry.get(40))
+            assert.equal(tabpage, target.widget:get_visible_tab_id())
+            assert.same({ quickfix }, non_widget_wins(tabpage))
+        end)
+
+        it("still rolls back a side layout", function()
+            Config.windows.position = "right"
+            local source = visible_source()
+
+            local target = SessionRegistry.replace(
+                source,
+                "claude-acp",
+                { kind = "new" },
+                { agent = new_agent("Injected") }
+            )
+            target.ready_callback(target)
+
+            assert.equal(source, SessionRegistry.get(40))
+            assert.equal(tabpage, source.widget:get_visible_tab_id())
+            assert.is_nil(SessionRegistry.get(target.session_key))
+            assert.same({}, non_widget_wins(tabpage))
+        end)
+    end)
+
     it("commits an already-loaded distinct target without creating", function()
         local source = new_session("source")
         source.session_key = 40

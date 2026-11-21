@@ -47,10 +47,10 @@ Pinned by, in `lua/agentic/ui/chat_widget.test.lua`:
   nothing.
 - Before closing widget windows, `hide` ensures a non-widget fallback window
   exists in the same tabpage; if `has_non_agentic_window` returns false it
-  calls `open_editor_window`. Skipping this destroys the user's tabpage: closing
-  the last window of a non-current tabpage closes that tabpage silently, and E444
-  (cannot close last window) only fires when it is also the last tabpage. See
-  `ChatWidget:hide`.
+  calls `open_editor_window` (except `stacked`, below). Skipping this destroys
+  the user's tabpage: closing the last window of a non-current tabpage closes
+  that tabpage silently, and E444 (cannot close last window) only fires when it
+  is also the last tabpage. See `ChatWidget:hide`.
 - `open_editor_window` puts the first readable oldfile under the cwd in the
   window it opens, else a new scratch buffer. In every position but `stacked`,
   that is what a widget-only tab falls back to.
@@ -73,10 +73,20 @@ Pinned by, in `lua/agentic/ui/chat_widget.test.lua`:
   `::"keeps the oldfile fallback for a side layout"` and
   `tests/integration/test_multi_session.lua::"keeps a widget-only stacked tab widget-only across a switch"`.
 - `SessionRegistry` replacement (`/new`, provider switch, restore, reattach)
-  anchors the target on `find_first_non_widget_window` in the source's tabpage.
-  A visible source with no such window rolls the replacement back and destroys
-  the target, which is the second way a widget-only tab fails. Regression:
-  `session_registry.test.lua::"rolls back when a visible source has no usable anchor"`.
+  requires a non-widget anchor: it shows the target inside `nvim_win_call` on
+  `find_first_non_widget_window` in the source's tabpage. A visible source with
+  no such window rolls the replacement back and destroys the target. A
+  `stacked` source supplies a reclaimable fallback instead:
+  `ChatWidget:ensure_fallback_window` opens the marked scratch, and the
+  target's `show` reclaims it from inside that `nvim_win_call`, so the tab stays
+  widget-only. The public wrapper creates the scratch whenever
+  `find_first_non_widget_window` finds nothing; `_ensure_fallback_window` would
+  skip it beside a quickfix or help window, which keeps the tab alive but is no
+  anchor. Regressions:
+  `session_registry.test.lua::"rolls back when a visible source has no usable anchor"`,
+  `::"commits a replacement into the same tab"`,
+  `::"commits beside a quickfix window"` and
+  `::"still rolls back a side layout"`.
 - A caller that reaches `hide` across an async boundary MUST pass the tabpage it
   captured BEFORE the defer, as `hide(keep_insert, tabpage)`. `WinClosed` fires on
   `win_nrs.chat` and invalidates it before the scheduled `hide` runs, and

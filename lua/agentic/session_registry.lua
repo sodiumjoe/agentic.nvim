@@ -293,6 +293,15 @@ commit_replacement = function(source, target, opts, destroy_target_on_rollback)
     local anchor = source_tab
             and source.widget:find_first_non_widget_window(source_tab)
         or nil
+    -- A widget-only stacked tab is a layout, not a missing anchor: the target's
+    -- `show` reclaims this fallback.
+    if
+        source_tab
+        and not anchor
+        and source.widget.current_position == "stacked"
+    then
+        anchor = source.widget:ensure_fallback_window(source_tab)
+    end
     local usable_anchor = anchor and BufHelpers.is_win_usable(anchor)
 
     if source_tab and not usable_anchor then
