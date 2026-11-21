@@ -27,7 +27,13 @@ Chat-buffer content, tool-call blocks, permissions: skill
 ## Window and layout hard rules
 
 - Foreign buffers in widget windows are redirected via `BufferGuard` to a
-  non-widget window in the same tabpage.
+  non-widget window in the same tabpage. When the tabpage has none,
+  `BufferGuard` creates one through `ChatWidget:open_editor_window`, which
+  splits from a widget window. Called without a buffer, `open_editor_window`
+  shows the first readable oldfile under the cwd, else a new scratch buffer.
+  This matters wherever the widget can be alone in its tab: `hide` and
+  `destroy` use the same function for their fallback window, except in
+  `stacked` (skill `agentic-ui-widget-lifecycle`).
 - Panel + fold window options (`WidgetLayout.PANEL_WINDOW_OPTS`,
   `Fold.setup_window`) MUST be written via `vim.wo[winid][0]`. See "Banned calls"
   in `lua/agentic/AGENTS.md`. Regression:

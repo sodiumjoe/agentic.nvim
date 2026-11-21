@@ -763,4 +763,45 @@ end)()
         assert.equal(1, session_count())
         assert.equal(1, visible_key())
     end)
+
+    it("keeps a widget-only stacked tab widget-only across a switch", function()
+        child.lua([[ require("agentic.config").windows.position = "stacked" ]])
+        create_sessions(2)
+
+        child.lua([[
+            for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+                if
+                    vim.api.nvim_win_get_config(winid).relative == ""
+                    and not vim.w[winid].agentic_bufnr
+                then
+                    vim.api.nvim_win_close(winid, true)
+                end
+            end
+        ]])
+        local tab = child.api.nvim_get_current_tabpage()
+        assert.equal(tab, session_tab(2))
+
+        child.lua([[ require("agentic.session_registry").show_session(1) ]])
+        child.flush()
+
+        assert.equal(1, visible_key())
+        assert.same({ "AgenticChat", "AgenticInput" }, widget_filetypes(tab))
+        assert.equal(
+            0,
+            child.lua_get([[
+(function()
+    local count = 0
+    for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+        if
+            vim.api.nvim_win_get_config(winid).relative == ""
+            and not vim.w[winid].agentic_bufnr
+        then
+            count = count + 1
+        end
+    end
+    return count
+end)()
+]])
+        )
+    end)
 end)

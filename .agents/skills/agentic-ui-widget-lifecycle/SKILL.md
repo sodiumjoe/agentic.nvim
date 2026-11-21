@@ -51,6 +51,32 @@ Pinned by, in `lua/agentic/ui/chat_widget.test.lua`:
   the last window of a non-current tabpage closes that tabpage silently, and E444
   (cannot close last window) only fires when it is also the last tabpage. See
   `ChatWidget:hide`.
+- `open_editor_window` puts the first readable oldfile under the cwd in the
+  window it opens, else a new scratch buffer. In every position but `stacked`,
+  that is what a widget-only tab falls back to.
+- A `stacked` widget that is alone in its tab falls back to an empty marked
+  scratch window, and the next `stacked` show reclaims it while it is
+  untouched. `ChatWidget:_open_fallback_scratch` marks it with
+  `vim.w[winid].agentic_fallback_bufnr`, and `ChatWidget:_reclaim_fallback_windows`
+  runs only on a `show` that opened the widget's windows from a hidden state,
+  never on `rerender` or a `show` that reused visible windows. Reclaiming on
+  every `show` closes a fallback the user is looking at while the widget
+  re-renders. A window qualifies only while it still shows the marked buffer,
+  unnamed, unmodified and a single empty line; without the marker check the
+  reclaim closes the user's own empty `:tabnew` window. Regressions:
+  `chat_widget.test.lua::"leaves an empty marked scratch when a stacked widget hides"`,
+  `::"reclaims the untouched scratch when a stacked widget shows"`,
+  `::"keeps a scratch the user typed into"`,
+  `::"keeps a scratch whose window shows another buffer"`,
+  `::"leaves a marked window alone on rerender"`,
+  `::"leaves an empty marked scratch when a stacked widget is destroyed from another tab"`,
+  `::"keeps the oldfile fallback for a side layout"` and
+  `tests/integration/test_multi_session.lua::"keeps a widget-only stacked tab widget-only across a switch"`.
+- `SessionRegistry` replacement (`/new`, provider switch, restore, reattach)
+  anchors the target on `find_first_non_widget_window` in the source's tabpage.
+  A visible source with no such window rolls the replacement back and destroys
+  the target, which is the second way a widget-only tab fails. Regression:
+  `session_registry.test.lua::"rolls back when a visible source has no usable anchor"`.
 - A caller that reaches `hide` across an async boundary MUST pass the tabpage it
   captured BEFORE the defer, as `hide(keep_insert, tabpage)`. `WinClosed` fires on
   `win_nrs.chat` and invalidates it before the scheduled `hide` runs, and

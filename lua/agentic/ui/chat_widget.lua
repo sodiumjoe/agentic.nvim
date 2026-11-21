@@ -151,7 +151,52 @@ function ChatWidget:show(opts)
         return
     end
 
+    local reclaim_fallback = self.current_position == "stacked"
+        and not visible_tab
+
     WidgetLayout.open(params)
+
+    if reclaim_fallback then
+        self:_reclaim_fallback_windows()
+    end
+end
+
+--- Closes the empty scratch fallbacks a widget-only stacked tab left behind,
+--- so a session switch there stays widget-only.
+function ChatWidget:_reclaim_fallback_windows()
+    local tabpage = self:get_visible_tab_id()
+    if not tabpage or not BufHelpers.is_win_usable(self.win_nrs.input) then
+        return
+    end
+
+    local all_windows = vim.api.nvim_tabpage_list_wins(tabpage)
+    for _, winid in ipairs(all_windows) do
+        if self:_is_untouched_fallback(winid) then
+            self:_avoid_auto_close_cmd(function()
+                pcall(vim.api.nvim_win_close, winid, true)
+            end)
+        end
+    end
+end
+
+--- @param winid integer
+--- @return boolean
+function ChatWidget:_is_untouched_fallback(winid)
+    if not BufHelpers.is_win_usable(winid) then
+        return false
+    end
+
+    local bufnr = vim.api.nvim_win_get_buf(winid)
+    if
+        vim.w[winid].agentic_fallback_bufnr ~= bufnr
+        or vim.api.nvim_buf_get_name(bufnr) ~= ""
+        or vim.bo[bufnr].modified
+        or vim.api.nvim_buf_line_count(bufnr) ~= 1
+    then
+        return false
+    end
+
+    return vim.api.nvim_buf_get_lines(bufnr, 0, 1, false)[1] == ""
 end
 
 --- Content callbacks fire for background sessions too, where a bare `show`
@@ -268,25 +313,80 @@ end
 
 --- Closing a tab's last window destroys that tab, silently when it is not the current one.
 --- @param tabpage integer|nil Placement captured before an async boundary
+--- @return integer|nil winid The window created, nil when none was needed or creation failed
 function ChatWidget:_ensure_fallback_window(tabpage)
     -- Liveness is re-resolved here, never captured: only the tabpage IDENTITY
     -- crosses the boundary.
     if tabpage and not vim.api.nvim_tabpage_is_valid(tabpage) then
-        return
+        return nil
     end
 
     tabpage = tabpage or self:get_visible_tab_id()
 
     if not tabpage or self:has_non_agentic_window(tabpage) then
-        return
+        return nil
     end
 
-    if not self:open_editor_window() then
+    --- @type integer|nil
+    local winid
+    if self.current_position == "stacked" then
+        winid = self:_open_fallback_scratch(tabpage)
+    else
+        winid = self:open_editor_window()
+    end
+
+    if not winid then
         Logger.notify(
             "Failed to create a fallback window; the widget's windows may not close cleanly.",
             vim.log.levels.ERROR
         )
     end
+
+    return winid
+end
+
+--- A stacked widget alone in its tab falls back to an empty scratch the next
+--- stacked show reclaims, not to an unrelated oldfile. `nvim_open_win` instead
+--- of `open_editor_window`, whose `:split` runs from the chat window.
+--- @param tabpage integer
+--- @return integer|nil winid
+function ChatWidget:_open_fallback_scratch(tabpage)
+    --- @type integer|nil
+    local anchor
+    local all_windows = vim.api.nvim_tabpage_list_wins(tabpage)
+    for _, candidate in ipairs(all_windows) do
+        if
+            BufHelpers.is_win_usable(candidate)
+            and vim.api.nvim_win_get_config(candidate).relative == ""
+        then
+            anchor = candidate
+            break
+        end
+    end
+
+    if not anchor then
+        return nil
+    end
+
+    local scratch = vim.api.nvim_create_buf(false, true)
+    vim.bo[scratch].bufhidden = "wipe"
+
+    local ok, winid = pcall(vim.api.nvim_win_call, anchor, function()
+        return vim.api.nvim_open_win(
+            scratch,
+            false,
+            { split = "above", win = -1 }
+        )
+    end)
+
+    if not ok or type(winid) ~= "number" then
+        pcall(vim.api.nvim_buf_delete, scratch, { force = true })
+        return nil
+    end
+
+    vim.w[winid].agentic_fallback_bufnr = scratch
+
+    return winid
 end
 
 --- Must run BEFORE `WidgetLayout.close`, which nils `win_nrs`.

@@ -723,6 +723,211 @@ describe("agentic.ui.ChatWidget", function()
         end)
     end)
 
+    describe("fallback window when the widget is alone", function()
+        --- @type agentic.ui.ChatWidget[]
+        local widgets
+        local original_position
+        local original_oldfiles
+        --- @type table<integer, boolean>
+        local baseline_tabs
+        --- @type table<integer, boolean>
+        local baseline_bufs
+        local oldfile = vim.fn.getcwd() .. "/README.md"
+
+        --- @return agentic.ui.ChatWidget
+        local function new_widget()
+            local widget =
+                ChatWidget:new(spy.new(function() end) --[[@as function]])
+            widgets[#widgets + 1] = widget
+            return widget
+        end
+
+        --- @param tabpage integer
+        --- @return integer[]
+        local function non_widget_wins(tabpage)
+            local result = {}
+            for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(tabpage)) do
+                if
+                    vim.api.nvim_win_get_config(winid).relative == ""
+                    and not vim.w[winid].agentic_bufnr
+                then
+                    result[#result + 1] = winid
+                end
+            end
+            return result
+        end
+
+        --- @param widget agentic.ui.ChatWidget
+        --- @return integer tabpage
+        local function show_alone(widget)
+            widget:show({ focus_prompt = false })
+            local tabpage = widget:get_visible_tab_id()
+            ---@cast tabpage integer
+            for _, winid in ipairs(non_widget_wins(tabpage)) do
+                vim.api.nvim_win_close(winid, true)
+            end
+            return tabpage
+        end
+
+        --- @param winid integer
+        local function assert_empty_marked_scratch(winid)
+            local bufnr = vim.api.nvim_win_get_buf(winid)
+            assert.equal("", vim.api.nvim_buf_get_name(bufnr))
+            assert.is_false(vim.bo[bufnr].modified)
+            assert.same({ "" }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+            assert.equal("nofile", vim.bo[bufnr].buftype)
+            assert.equal(bufnr, vim.w[winid].agentic_fallback_bufnr)
+        end
+
+        before_each(function()
+            original_position = Config.windows.position
+            Config.windows.position = "stacked"
+            original_oldfiles = vim.v.oldfiles
+            vim.v.oldfiles = { oldfile }
+            widgets = {}
+            baseline_tabs = {}
+            for _, tabpage in ipairs(vim.api.nvim_list_tabpages()) do
+                baseline_tabs[tabpage] = true
+            end
+            baseline_bufs = {}
+            for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+                baseline_bufs[bufnr] = true
+            end
+
+            vim.cmd("tabnew")
+        end)
+
+        after_each(function()
+            for _, widget in ipairs(widgets) do
+                pcall(function()
+                    widget:destroy()
+                end)
+            end
+            for _, tabpage in ipairs(vim.api.nvim_list_tabpages()) do
+                if not baseline_tabs[tabpage] then
+                    vim.cmd(
+                        "tabclose! " .. vim.api.nvim_tabpage_get_number(tabpage)
+                    )
+                end
+            end
+            for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+                if not baseline_bufs[bufnr] then
+                    pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+                end
+            end
+
+            vim.v.oldfiles = original_oldfiles
+            Config.windows.position = original_position
+        end)
+
+        it(
+            "leaves an empty marked scratch when a stacked widget hides",
+            function()
+                local widget = new_widget()
+                local tabpage = show_alone(widget)
+
+                widget:hide()
+
+                local remaining = non_widget_wins(tabpage)
+                assert.equal(1, #remaining)
+                assert_empty_marked_scratch(remaining[1])
+            end
+        )
+
+        it(
+            "reclaims the untouched scratch when a stacked widget shows",
+            function()
+                local widget = new_widget()
+                local tabpage = show_alone(widget)
+                widget:hide()
+                local fallback = non_widget_wins(tabpage)[1]
+
+                local other = new_widget()
+                other:show({ focus_prompt = false })
+
+                assert.equal(tabpage, other:get_visible_tab_id())
+                assert.is_false(vim.api.nvim_win_is_valid(fallback))
+                assert.same({}, non_widget_wins(tabpage))
+            end
+        )
+
+        it("keeps a scratch the user typed into", function()
+            local widget = new_widget()
+            local tabpage = show_alone(widget)
+            widget:hide()
+            local fallback = non_widget_wins(tabpage)[1]
+            local bufnr = vim.api.nvim_win_get_buf(fallback)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "notes" })
+
+            new_widget():show({ focus_prompt = false })
+
+            assert.same({ fallback }, non_widget_wins(tabpage))
+        end)
+
+        it("keeps a scratch whose window shows another buffer", function()
+            local widget = new_widget()
+            local tabpage = show_alone(widget)
+            widget:hide()
+            local fallback = non_widget_wins(tabpage)[1]
+            local replacement = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_win_set_buf(fallback, replacement)
+
+            new_widget():show({ focus_prompt = false })
+
+            assert.same({ fallback }, non_widget_wins(tabpage))
+        end)
+
+        it("leaves a marked window alone on rerender", function()
+            local widget = new_widget()
+            local tabpage = show_alone(widget)
+            local scratch = vim.api.nvim_create_buf(false, true)
+            local marked = vim.api.nvim_open_win(
+                scratch,
+                false,
+                { split = "above", win = -1 }
+            )
+            vim.w[marked].agentic_fallback_bufnr = scratch
+
+            widget:rerender()
+
+            assert.same({ marked }, non_widget_wins(tabpage))
+        end)
+
+        it(
+            "leaves an empty marked scratch when a stacked widget is destroyed from another tab",
+            function()
+                local widget = new_widget()
+                local tabpage = show_alone(widget)
+                vim.cmd("tabnew")
+
+                widget:destroy()
+
+                assert.is_true(vim.api.nvim_tabpage_is_valid(tabpage))
+                local remaining = non_widget_wins(tabpage)
+                assert.equal(1, #remaining)
+                assert_empty_marked_scratch(remaining[1])
+            end
+        )
+
+        it("keeps the oldfile fallback for a side layout", function()
+            Config.windows.position = "right"
+            local widget = new_widget()
+            local tabpage = show_alone(widget)
+
+            widget:hide()
+
+            local remaining = non_widget_wins(tabpage)
+            assert.equal(1, #remaining)
+            assert.equal(
+                oldfile,
+                vim.api.nvim_buf_get_name(
+                    vim.api.nvim_win_get_buf(remaining[1])
+                )
+            )
+            assert.is_nil(vim.w[remaining[1]].agentic_fallback_bufnr)
+        end)
+    end)
+
     describe("(bottom layout) specific", function()
         local widget
         local original_position
@@ -2351,6 +2556,66 @@ describe("agentic.ui.ChatWidget WinClosed deferred hide (child)", function()
             child.lua_get("#vim.api.nvim_tabpage_list_wins(_G.widget_tab) > 0")
         )
     end)
+
+    it(
+        "keeps a widget-only stacked tab alive with one marked scratch when the chat window closes",
+        function()
+            child.lua([[
+                local Config = require("agentic.config")
+                local ChatWidget = require("agentic.ui.chat_widget")
+                Config.windows.position = "stacked"
+                vim.cmd("tabnew")
+                _G.widget_tab = vim.api.nvim_get_current_tabpage()
+                _G.widget = ChatWidget:new(function() return true end)
+                _G.widget:show({ focus_prompt = false })
+
+                for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(_G.widget_tab)) do
+                    if not vim.w[winid].agentic_bufnr then
+                        pcall(vim.api.nvim_win_close, winid, true)
+                    end
+                end
+
+                vim.api.nvim_set_current_win(_G.widget.win_nrs.chat)
+                vim.cmd("quit")
+            ]])
+
+            child.flush()
+
+            assert.is_true(
+                child.lua_get("vim.api.nvim_tabpage_is_valid(_G.widget_tab)")
+            )
+            child.lua([[
+                _G.scratches = {}
+                for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(_G.widget_tab)) do
+                    if not vim.w[winid].agentic_bufnr then
+                        table.insert(_G.scratches, winid)
+                    end
+                end
+            ]])
+            assert.equal(1, child.lua_get("#_G.scratches"))
+            assert.equal(
+                child.lua_get("vim.api.nvim_win_get_buf(_G.scratches[1])"),
+                child.lua_get("vim.w[_G.scratches[1]].agentic_fallback_bufnr")
+            )
+            assert.same(
+                { "" },
+                child.lua_get(
+                    "vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(_G.scratches[1]), 0, -1, false)"
+                )
+            )
+
+            child.lua([[
+                _G.widget:show({ focus_prompt = false })
+                _G.remaining = 0
+                for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(_G.widget_tab)) do
+                    if not vim.w[winid].agentic_bufnr then
+                        _G.remaining = _G.remaining + 1
+                    end
+                end
+            ]])
+            assert.equal(0, child.lua_get("_G.remaining"))
+        end
+    )
 
     it(
         "keeps replacement windows after closing a cached cross-tab window",

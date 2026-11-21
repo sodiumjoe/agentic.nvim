@@ -1,7 +1,7 @@
 # 0008. Session-keyed ownership
 
 - Status: accepted
-- Last updated: 2026-11-19
+- Last updated: 2026-11-20
 - Related: PR #283, PR #261, issue #282
 
 ## Context
@@ -145,6 +145,27 @@ tabpage before closing, and before `WidgetRegistry.unregister` — otherwise
 hands one back. Regression:
 `chat_widget.test.lua::"keeps the tabpage alive when the widget holds its only windows"`.
 
+**A `stacked` widget alone in its tab falls back to an empty marked scratch
+window, and the next `stacked` show reclaims it while it is untouched.** With
+the oldfile fallback, `show_session` in a widget-only tab hid the outgoing
+widget into a window showing an unrelated file and showed the target beside
+it, so a full-screen conversation became a split. `_ensure_fallback_window`
+opens the scratch with `nvim_open_win` and records it in
+`vim.w[winid].agentic_fallback_bufnr`. A `stacked` `show` that opened the
+widget's windows from a hidden state closes every window in its tabpage that
+still shows that buffer, unnamed, unmodified and a single empty line. A `show`
+that reuses visible windows, including `rerender`, reclaims nothing. A
+fallback the user typed into or replaced is kept. Other positions keep the
+oldfile fallback. Regressions:
+`chat_widget.test.lua::"leaves an empty marked scratch when a stacked widget hides"`,
+`::"reclaims the untouched scratch when a stacked widget shows"`,
+`::"keeps a scratch the user typed into"`,
+`::"keeps a scratch whose window shows another buffer"`,
+`::"leaves a marked window alone on rerender"`,
+`::"leaves an empty marked scratch when a stacked widget is destroyed from another tab"`,
+`::"keeps the oldfile fallback for a side layout"` and
+`tests/integration/test_multi_session.lua::"keeps a widget-only stacked tab widget-only across a switch"`.
+
 **Identity is published.** Every hook payload carries `session_key`, stable for
 life. `tab_page_id` survives as placement only, nil for a background session;
 `on_response_complete` resolves it inside its deferred callback, so it reports
@@ -192,22 +213,23 @@ prompt to label `select_session` rows.
 
 ## Rejected / superseded alternatives
 
-| Option                                                           | Reason rejected                                                                                                                                                                            |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Tabpage-keyed registry with `TabClosed` destroy (prior decision) | One conversation per tab, `:tabclose` destroyed a generating session with its provider state, and sessions could never be reopened elsewhere.                                              |
-| Store the tabpage on the session or widget                       | A stored handle diverges from reality the moment a widget is hidden, moved, or its tab closes. `get_visible_tab_id()` cannot go stale.                                                     |
-| Keep `vim.t` for diff and header state                           | Returns copies, so nested mutation silently did not persist, and tab-scoped storage cannot follow a session that moves or runs in none.                                                    |
-| Weak-valued `sessions` table                                     | Once `cancel_session` drops the subscriber the registry is the only strong reference, so a wanted background session would be collected.                                                   |
-| Automatic source replacement for restore or `/new`               | A successful target destroyed a live source without an explicit lifecycle choice.                                                                                                          |
-| Reuse widget, buffers or `config_options` on provider switch     | Providers declare different options; inherited state can be invalid.                                                                                                                       |
-| Reuse a `SessionManager` for `session/new` or `session/load`     | Reset paths retain manager-owned UI and state.                                                                                                                                             |
-| Destroy the source before its replacement is ready               | Startup can fail, losing the working conversation and size donor.                                                                                                                          |
-| Create a placeholder manager to resolve a provider client        | Opening the picker would allocate UI and an ACP conversation.                                                                                                                              |
-| Require a session title during create, load, or provider switch  | ACP does not require it; titles are optional local metadata.                                                                                                                               |
-| Cycle sessions in `list()` order                                 | `list()` is recency-ordered and `show_session` rewrites it, so each press reorders the sequence being traversed and `prev` stops inverting `next`.                                         |
-| Capture the size donor in `show_session` before repointing       | `resolve_or_create` repoints one call earlier, so the guard would duplicate there and at every future write site. Recording the displaced session fixes all paths at the cursor.           |
-| Fetch session titles from `session/list`                         | No ACP title on `session/new`, `session/load`, or any `SessionUpdate`. Reconciling costs a round trip per provider before the picker renders.                                              |
-| Rely only on per-handler liveness guards                         | Every new handler could forget. `ACPClient:__with_subscriber` provides the central notification gate; handler and scheduled-callback guards remain required at their own async boundaries. |
+| Option                                                              | Reason rejected                                                                                                                                                                            |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Tabpage-keyed registry with `TabClosed` destroy (prior decision)    | One conversation per tab, `:tabclose` destroyed a generating session with its provider state, and sessions could never be reopened elsewhere.                                              |
+| Store the tabpage on the session or widget                          | A stored handle diverges from reality the moment a widget is hidden, moved, or its tab closes. `get_visible_tab_id()` cannot go stale.                                                     |
+| Keep `vim.t` for diff and header state                              | Returns copies, so nested mutation silently did not persist, and tab-scoped storage cannot follow a session that moves or runs in none.                                                    |
+| Weak-valued `sessions` table                                        | Once `cancel_session` drops the subscriber the registry is the only strong reference, so a wanted background session would be collected.                                                   |
+| Automatic source replacement for restore or `/new`                  | A successful target destroyed a live source without an explicit lifecycle choice.                                                                                                          |
+| Reuse widget, buffers or `config_options` on provider switch        | Providers declare different options; inherited state can be invalid.                                                                                                                       |
+| Reuse a `SessionManager` for `session/new` or `session/load`        | Reset paths retain manager-owned UI and state.                                                                                                                                             |
+| Destroy the source before its replacement is ready                  | Startup can fail, losing the working conversation and size donor.                                                                                                                          |
+| Create a placeholder manager to resolve a provider client           | Opening the picker would allocate UI and an ACP conversation.                                                                                                                              |
+| Require a session title during create, load, or provider switch     | ACP does not require it; titles are optional local metadata.                                                                                                                               |
+| Cycle sessions in `list()` order                                    | `list()` is recency-ordered and `show_session` rewrites it, so each press reorders the sequence being traversed and `prev` stops inverting `next`.                                         |
+| Capture the size donor in `show_session` before repointing          | `resolve_or_create` repoints one call earlier, so the guard would duplicate there and at every future write site. Recording the displaced session fixes all paths at the cursor.           |
+| Fetch session titles from `session/list`                            | No ACP title on `session/new`, `session/load`, or any `SessionUpdate`. Reconciling costs a round trip per provider before the picker renders.                                              |
+| Rely only on per-handler liveness guards                            | Every new handler could forget. `ACPClient:__with_subscriber` provides the central notification gate; handler and scheduled-callback guards remain required at their own async boundaries. |
+| Show the target before hiding the outgoing widget in `show_session` | Breaks "hide before show", which `ChatWidget.size` inheritance reads, to keep a widget-only `stacked` tab widget-only. Reclaiming the fallback keeps the order.                            |
 
 ## Changelog
 
@@ -219,6 +241,7 @@ prompt to label `select_session` rows.
 | 2026-08-21 | Made restore and `/new` ask for source lifecycle and require explicit destruction.           |
 | 2026-11-19 | Made `cancel_session` release a session only while the caller's handlers own its subscriber. |
 | 2026-11-19 | Added `reattach` to reload a session into a new manager, handing the id back on rollback.    |
+| 2026-11-20 | A widget-only `stacked` tab falls back to an empty scratch the next `stacked` show reclaims. |
 
 ## Sources
 
