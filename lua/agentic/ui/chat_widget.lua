@@ -168,6 +168,10 @@ end
 --- switching sessions does not resize the sidebar.
 --- @return agentic.ui.ChatWidget.Size|nil
 function ChatWidget:_inherited_size()
+    if self.current_position == "stacked" then
+        return nil
+    end
+
     local SessionRegistry = require("agentic.session_registry")
 
     --- @type "height"|"width"
@@ -256,8 +260,10 @@ function ChatWidget:hide(keep_insert, tabpage)
 
     -- The chat buffer's only remaining window; ADR 0001's manual folds die with it. Close first, or the winid leaks.
     self:_close_hidden_chat_window()
-    self._hidden_chat_winid =
-        WidgetLayout.open_hidden_chat_window(self.buf_nrs.chat)
+    self._hidden_chat_winid = WidgetLayout.open_hidden_chat_window(
+        self.buf_nrs.chat,
+        self.current_position
+    )
 end
 
 --- Closing a tab's last window destroys that tab, silently when it is not the current one.
@@ -286,7 +292,11 @@ end
 --- Must run BEFORE `WidgetLayout.close`, which nils `win_nrs`.
 function ChatWidget:_remember_size()
     local winid = self.win_nrs.chat
-    if not winid or not self:get_visible_tab_id() then
+    if
+        self.current_position == "stacked"
+        or not winid
+        or not self:get_visible_tab_id()
+    then
         return
     end
 
@@ -433,8 +443,10 @@ function ChatWidget:_initialize()
     self.buf_nrs = self:_create_buf_nrs()
     WidgetRegistry.register(self)
 
-    self._hidden_chat_winid =
-        WidgetLayout.open_hidden_chat_window(self.buf_nrs.chat)
+    self._hidden_chat_winid = WidgetLayout.open_hidden_chat_window(
+        self.buf_nrs.chat,
+        self.current_position
+    )
 
     self:_bind_keymaps()
 
@@ -871,6 +883,7 @@ local SPLIT_CMD_BY_POSITION = {
     left = "botright vsplit",
     bottom = "topleft split",
     right = "topleft vsplit",
+    stacked = "topleft split",
 }
 
 --- Opens a new editor window on the opposite side of the widget.

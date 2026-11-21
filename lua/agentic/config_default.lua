@@ -153,7 +153,7 @@
 --- @field max_height number
 --- @field win_opts? agentic.UserConfig.WinOpts
 
---- @alias agentic.UserConfig.Windows.Position "right"|"left"|"bottom"
+--- @alias agentic.UserConfig.Windows.Position "right"|"left"|"bottom"|"stacked"
 
 --- @class agentic.UserConfig.Windows
 --- @field position agentic.UserConfig.Windows.Position

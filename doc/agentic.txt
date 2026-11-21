@@ -309,13 +309,17 @@ windows ~
 
   Configure window layout and dimensions.
 
-  `position`           Position of the sidebar: `"right"`, `"left"`,
-                       or `"bottom"`. Default: `"right"`.
+  `position`           Widget layout position: `"right"`, `"left"`,
+                       `"bottom"`, or `"stacked"` (chat over input at
+                       full width, other panels between them).
+                       Default: `"right"`.
   `width`              Width of the sidebar. String percentage or
                        number. Default: `"40%"`.
-  `height`             Height when position is `"bottom"`. String
-                       percentage or number. Default: `"30%"`.
-  `stack_width_ratio`  Ratio for stacked panels. Default: `0.4`.
+  `height`             Height when position is `"bottom"`, and the
+                       chat's opening height when it is `"stacked"`.
+                       String percentage or number. Default: `"30%"`.
+  `stack_width_ratio`  Bottom layout: input width as a ratio of the
+                       chat width. Default: `0.4`.
   `buffer_name`        Name of the window buffer. String title
                        or function returning string title.
                        Functions receive the header parts and an

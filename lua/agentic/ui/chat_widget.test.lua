@@ -24,7 +24,7 @@ describe("agentic.ui.ChatWidget", function()
     end
 
     -- Layout-independent behavior
-    for _, position in ipairs({ "right", "left", "bottom" }) do
+    for _, position in ipairs({ "right", "left", "bottom", "stacked" }) do
         -- Bottom uses 2 to avoid touching the screen edge
         local padding = position == "bottom" and 2 or 1
 
@@ -653,6 +653,76 @@ describe("agentic.ui.ChatWidget", function()
         end)
     end
 
+    describe("(stacked layout) specific", function()
+        local widget
+        local original_position
+
+        before_each(function()
+            original_position = Config.windows.position
+            Config.windows.position = "stacked"
+
+            vim.cmd("tabnew")
+
+            local on_submit_spy = spy.new(function() end)
+            widget = ChatWidget:new(on_submit_spy --[[@as function]])
+        end)
+
+        after_each(function()
+            if widget then
+                pcall(function()
+                    widget:destroy()
+                end)
+            end
+            pcall(function()
+                vim.cmd("tabclose")
+            end)
+
+            Config.windows.position = original_position
+        end)
+
+        it("input splits below chat", function()
+            widget:show()
+
+            local chat_pos = vim.api.nvim_win_get_position(widget.win_nrs.chat)
+            local input_pos =
+                vim.api.nvim_win_get_position(widget.win_nrs.input)
+
+            assert.is_true(input_pos[1] > chat_pos[1])
+            assert.equal(chat_pos[2], input_pos[2])
+        end)
+
+        it("input has fixed height", function()
+            widget:show()
+
+            local input_height =
+                vim.api.nvim_win_get_height(widget.win_nrs.input)
+            assert.equal(Config.windows.input.height, input_height)
+        end)
+
+        it("chat spans the full width without fixing it", function()
+            widget:show()
+
+            assert.equal(
+                vim.o.columns,
+                vim.api.nvim_win_get_width(widget.win_nrs.chat)
+            )
+            assert.is_false(vim.wo[widget.win_nrs.chat].winfixwidth)
+        end)
+
+        it("opens an editor window above the chat at full width", function()
+            widget:show({ focus_prompt = false })
+
+            local editor_win = widget:open_editor_window()
+            assert.is_not_nil(editor_win)
+            ---@cast editor_win integer
+
+            local editor_pos = vim.api.nvim_win_get_position(editor_win)
+            local chat_pos = vim.api.nvim_win_get_position(widget.win_nrs.chat)
+            assert.is_true(editor_pos[1] < chat_pos[1])
+            assert.equal(vim.o.columns, vim.api.nvim_win_get_width(editor_win))
+        end)
+    end)
+
     describe("(bottom layout) specific", function()
         local widget
         local original_position
@@ -1000,6 +1070,34 @@ describe("agentic.ui.ChatWidget", function()
             assert.equal(50, vim.api.nvim_win_get_width(widget.win_nrs.chat))
         end)
 
+        it("reopens a stacked chat at the configured height", function()
+            widget.current_position = "stacked"
+            widget:show({ focus_prompt = false })
+            local initial_height =
+                vim.api.nvim_win_get_height(widget.win_nrs.chat)
+            BufHelpers.win_set_height(widget.win_nrs.chat, initial_height - 2)
+
+            widget:hide()
+            widget:show({ focus_prompt = false })
+
+            assert.equal(
+                initial_height,
+                vim.api.nvim_win_get_height(widget.win_nrs.chat)
+            )
+        end)
+
+        it("does not carry a stacked width into a side layout", function()
+            widget.current_position = "stacked"
+            widget:show({ focus_prompt = false })
+            widget:hide()
+
+            widget:rotate_layout({ "stacked", "right" })
+
+            assert.equal("right", widget.current_position)
+            -- 40% of the 80-column headless editor
+            assert.equal(32, vim.api.nvim_win_get_width(widget.win_nrs.chat))
+        end)
+
         it("restores the width after rotating away and back", function()
             widget:show({ focus_prompt = false })
             BufHelpers.win_set_width(widget.win_nrs.chat, 50)
@@ -1015,8 +1113,10 @@ describe("agentic.ui.ChatWidget", function()
 
     describe("hidden chat window lifecycle", function()
         local widget
+        local original_position
 
         before_each(function()
+            original_position = Config.windows.position
             vim.cmd("tabnew")
 
             local on_submit_spy = spy.new(function() end)
@@ -1033,6 +1133,7 @@ describe("agentic.ui.ChatWidget", function()
             pcall(function()
                 vim.cmd("tabclose")
             end)
+            Config.windows.position = original_position
         end)
 
         it(
@@ -1051,6 +1152,27 @@ describe("agentic.ui.ChatWidget", function()
                 assert.is_true(cfg.hide)
             end
         )
+
+        it("sizes a stacked widget's hidden float to the full width", function()
+            widget:destroy()
+            Config.windows.position = "stacked"
+            -- `any`: the hidden float is reachable only through the private handle.
+            --- @type any
+            local stacked =
+                ChatWidget:new(spy.new(function() end) --[[@as function]])
+            widget = stacked
+
+            local constructed_width =
+                vim.api.nvim_win_get_width(stacked._hidden_chat_winid)
+            stacked:show({ focus_prompt = false })
+            stacked:hide()
+
+            assert.equal(vim.o.columns, constructed_width)
+            assert.equal(
+                vim.o.columns,
+                vim.api.nvim_win_get_width(stacked._hidden_chat_winid)
+            )
+        end)
 
         it("closes hidden chat window before opening visible widget", function()
             local hidden = widget._hidden_chat_winid

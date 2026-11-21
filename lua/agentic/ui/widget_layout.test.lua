@@ -746,6 +746,118 @@ describe("WidgetLayout", function()
                 vim.cmd("tabclose")
             end)
         end)
+
+        describe("stacked position", function()
+            --- @type integer
+            local saved_lines
+
+            before_each(function()
+                saved_lines = vim.o.lines
+                vim.cmd("tabnew")
+            end)
+
+            after_each(function()
+                vim.o.lines = saved_lines
+            end)
+
+            --- @param filled boolean
+            --- @return agentic.ui.ChatWidget.BufNrs buf_nrs
+            local function make_buf_nrs(filled)
+                --- @type agentic.ui.ChatWidget.BufNrs
+                local buf_nrs = {
+                    chat = vim.api.nvim_create_buf(false, true),
+                    input = vim.api.nvim_create_buf(false, true),
+                    code = vim.api.nvim_create_buf(false, true),
+                    files = vim.api.nvim_create_buf(false, true),
+                    diagnostics = vim.api.nvim_create_buf(false, true),
+                    todos = vim.api.nvim_create_buf(false, true),
+                }
+                if filled then
+                    for _, name in ipairs({
+                        "code",
+                        "files",
+                        "diagnostics",
+                        "todos",
+                    }) do
+                        vim.api.nvim_buf_set_lines(
+                            buf_nrs[name],
+                            0,
+                            -1,
+                            false,
+                            { name }
+                        )
+                    end
+                end
+                return buf_nrs
+            end
+
+            it("opens chat over input at full width", function()
+                local win_nrs = {}
+                WidgetLayout.open({
+                    buf_nrs = make_buf_nrs(false),
+                    win_nrs = win_nrs,
+                    position = "stacked",
+                    focus_prompt = false,
+                })
+
+                assert.equal(0, notify_stub.call_count)
+                assert.equal(
+                    vim.o.columns,
+                    vim.api.nvim_win_get_width(win_nrs.chat)
+                )
+
+                local chat_pos = vim.api.nvim_win_get_position(win_nrs.chat)
+                local input_pos = vim.api.nvim_win_get_position(win_nrs.input)
+                local chat_height = vim.api.nvim_win_get_height(win_nrs.chat)
+
+                -- One statusline row separates the two windows.
+                assert.equal(chat_pos[1] + chat_height + 1, input_pos[1])
+                assert.equal(chat_pos[2], input_pos[2])
+                assert.equal(
+                    Config.windows.input.height,
+                    vim.api.nvim_win_get_height(win_nrs.input)
+                )
+            end)
+
+            it("puts every panel between chat and input", function()
+                vim.o.lines = 60
+
+                local win_nrs = {}
+                WidgetLayout.open({
+                    buf_nrs = make_buf_nrs(true),
+                    win_nrs = win_nrs,
+                    position = "stacked",
+                    focus_prompt = false,
+                })
+
+                -- The side layouts' order: diagnostics splits above input
+                -- after files does, so it lands between them.
+                local order =
+                    { "chat", "todos", "code", "files", "diagnostics", "input" }
+                local previous_row = -1
+                for _, name in ipairs(order) do
+                    local winid = win_nrs[name]
+                    assert.is_not_nil(winid)
+                    local pos = vim.api.nvim_win_get_position(winid)
+                    assert.is_true(pos[1] > previous_row)
+                    assert.equal(0, pos[2])
+                    previous_row = pos[1]
+                end
+            end)
+
+            it("leaves the chat free to resize on both axes", function()
+                local win_nrs = {}
+                WidgetLayout.open({
+                    buf_nrs = make_buf_nrs(false),
+                    win_nrs = win_nrs,
+                    position = "stacked",
+                    focus_prompt = false,
+                })
+
+                assert.is_false(vim.wo[win_nrs.chat].winfixheight)
+                assert.is_false(vim.wo[win_nrs.chat].winfixwidth)
+            end)
+        end)
     end)
 
     describe("open_hidden_chat_window", function()
@@ -768,6 +880,17 @@ describe("WidgetLayout", function()
 
             pcall(vim.api.nvim_win_close, winid, true)
             pcall(vim.api.nvim_buf_delete, chat_buf, { force = true })
+        end)
+
+        it("measures a stacked chat at the full editor width", function()
+            local chat_buf = vim.api.nvim_create_buf(false, true)
+
+            local winid =
+                WidgetLayout.open_hidden_chat_window(chat_buf, "stacked")
+            assert.is_not_nil(winid)
+            ---@cast winid integer
+
+            assert.equal(vim.o.columns, vim.api.nvim_win_get_width(winid))
         end)
 
         describe("with folding enabled", function()

@@ -271,6 +271,7 @@ end
 --- @param position agentic.UserConfig.Windows.Position
 local function show_layout(params, position)
     local is_bottom = position == "bottom"
+    local is_stacked = position == "stacked"
     local win_nrs = params.win_nrs
     local buf_nrs = params.buf_nrs
     local with_close = params.with_programmatic_close
@@ -289,7 +290,10 @@ local function show_layout(params, position)
 
     local size = params.size or {}
 
-    if is_bottom then
+    if is_stacked then
+        chat_opts.split = "below"
+        chat_opts.height = WidgetLayout.calculate_height(Config.windows.height)
+    elseif is_bottom then
         chat_opts.height = size.height
             or WidgetLayout.calculate_height(Config.windows.height)
     else
@@ -302,7 +306,7 @@ local function show_layout(params, position)
         statuscolumn = ToolBlockBorder.STATUSCOLUMN_EXPR,
         winhighlight = CHAT_GUTTER_WINHIGHLIGHT,
         winfixheight = is_bottom,
-        winfixwidth = not is_bottom,
+        winfixwidth = not is_bottom and not is_stacked,
     }, expected_tabpage, with_close)
 
     Fold.setup_window(win_nrs.chat, buf_nrs.chat)
@@ -392,11 +396,14 @@ local function show_layout(params, position)
 end
 
 --- @param bufnr integer Chat buffer
+--- @param position agentic.UserConfig.Windows.Position|nil
 --- @return integer|nil winid nil on failure (graceful degradation)
-function WidgetLayout.open_hidden_chat_window(bufnr)
+function WidgetLayout.open_hidden_chat_window(bufnr, position)
     -- The CONFIGURED width, not the visible chat's real one, so
     -- `nvim_win_text_height` has a stable basis while hidden (ADR 0001).
-    local width = WidgetLayout.calculate_width(Config.windows.width)
+    -- A stacked chat always spans the editor.
+    local width = position == "stacked" and vim.o.columns
+        or WidgetLayout.calculate_width(Config.windows.width)
 
     local ok, winid = pcall(vim.api.nvim_open_win, bufnr, false, {
         relative = "editor",
@@ -425,11 +432,15 @@ function WidgetLayout.open_hidden_chat_window(bufnr)
     return winid
 end
 
+--- @type table<agentic.UserConfig.Windows.Position, boolean>
+local VALID_POSITIONS =
+    { right = true, left = true, bottom = true, stacked = true }
+
 --- @param params agentic.ui.WidgetLayout.Params
 function WidgetLayout.open(params)
     local position = params.position
 
-    if position ~= "right" and position ~= "left" and position ~= "bottom" then
+    if not VALID_POSITIONS[position] then
         Logger.notify(
             "Invalid windows.position config: "
                 .. tostring(position)

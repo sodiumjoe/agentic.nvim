@@ -396,20 +396,21 @@ Configure the widget layout position and sizing:
   --- @type agentic.PartialUserConfig
   opts = {
     windows = {
-      position = "right",  -- "right", "left", or "bottom"
+      position = "right",  -- "right", "left", "bottom", or "stacked"
       width = "40%",       -- Sidebar width (position = "right" or "left")
-      height = "30%",      -- Panel height (position = "bottom")
+      height = "30%",      -- Panel height (position = "bottom" or "stacked")
     },
   },
 }
 ```
 
-- `position` - Widget layout: `"right"` or `"left"` (vertical sidebar) or
-  `"bottom"` (horizontal panel)
+- `position` - Widget layout: `"right"` or `"left"` (vertical sidebar),
+  `"bottom"` (horizontal panel), or `"stacked"` (chat over input at full width,
+  with the other panels between them)
 - `width` - Sidebar width when `position` is right or left (percentage, decimal,
   or absolute)
-- `height` - Panel height when `position = "bottom"` (percentage, decimal, or
-  absolute)
+- `height` - Panel height when `position` is bottom, or the chat's opening
+  height when it is stacked (percentage, decimal, or absolute)
 
 ### Rotating Layouts dynamically at runtime
 
@@ -418,7 +419,7 @@ You can rotate between layouts, dynamically, without closing Neovim with
 a no-op when there is none:
 
 ```lua
--- Rotates through all three layouts: right → bottom → left → right ...
+-- Rotates through the default layouts (`stacked` is opt-in): right → bottom → left → right ...
 require("agentic").rotate_layout()
 
 -- Rotates between right and bottom only
