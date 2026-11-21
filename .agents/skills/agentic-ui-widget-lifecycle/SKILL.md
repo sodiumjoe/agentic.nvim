@@ -87,6 +87,22 @@ Pinned by, in `lua/agentic/ui/chat_widget.test.lua`:
   `::"commits a replacement into the same tab"`,
   `::"commits beside a quickfix window"` and
   `::"still rolls back a side layout"`.
+- Replacement focus: the window that was current when the replacement started
+  is usually a source widget window, and it closes inside the `nvim_win_call`.
+  `nvim_win_call` then returns to a window chosen by the order the source's
+  windows closed. `WidgetLayout.close` walks `win_nrs` with `pairs`, and
+  LuaJIT randomizes that order per process, so the landing window can be the
+  source's hidden chat float, which the user cannot leave by window
+  navigation. After the placement, `commit_replacement` moves focus to the
+  target's input window, else its chat, in the current tabpage, whenever the
+  current window is unusable, floating, hidden or unfocusable. A normal window
+  keeps focus, so a side-layout replacement started from an editor window stays
+  there. Regressions:
+  `session_registry.test.lua::"focuses the target's input after a replacement from the source's input, retain_source false"`,
+  `::"focuses the target's input after a replacement from the source's input, retain_source true"`
+  and `::"keeps focus in the editor window for a side layout"`. The first two
+  fix the close order with a `WidgetLayout.close` stub that closes `input`
+  last; without it they fail only in some processes.
 - A caller that reaches `hide` across an async boundary MUST pass the tabpage it
   captured BEFORE the defer, as `hide(keep_insert, tabpage)`. `WinClosed` fires on
   `win_nrs.chat` and invalidates it before the scheduled `hide` runs, and

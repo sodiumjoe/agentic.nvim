@@ -48,6 +48,37 @@ local function remember_most_recent(session)
     SessionRegistry._most_recent = session
 end
 
+--- The source's windows close inside the placement's `nvim_win_call`, which then
+--- returns to a window picked by their close order: possibly the source's hidden
+--- chat float.
+--- @param target agentic.SessionManager
+local function focus_placed_target(target)
+    local current = vim.api.nvim_get_current_win()
+    local config = vim.api.nvim_win_get_config(current)
+    if
+        BufHelpers.is_win_usable(current)
+        and config.relative == ""
+        and not config.hide
+        and config.focusable ~= false
+    then
+        return
+    end
+
+    local current_tab = vim.api.nvim_get_current_tabpage()
+    for _, winid in ipairs({
+        target.widget.win_nrs.input,
+        target.widget.win_nrs.chat,
+    }) do
+        if
+            BufHelpers.is_win_usable(winid)
+            and vim.api.nvim_win_get_tabpage(winid) == current_tab
+        then
+            vim.api.nvim_set_current_win(winid)
+            return
+        end
+    end
+end
+
 --- @type fun(source: agentic.SessionManager|nil, target: agentic.SessionManager, opts: agentic.SessionReplacementOpts, destroy_target_on_rollback: boolean): boolean
 local commit_replacement
 
@@ -344,6 +375,7 @@ commit_replacement = function(source, target, opts, destroy_target_on_rollback)
             end
             return false
         end
+        focus_placed_target(target)
     else
         SessionRegistry.set_most_recent(target_key)
     end

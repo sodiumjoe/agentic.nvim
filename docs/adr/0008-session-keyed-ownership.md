@@ -159,7 +159,12 @@ fallback the user typed into or replaced is kept. Other positions keep the
 oldfile fallback. The same scratch is the replacement anchor for a `stacked`
 source that has no non-widget window: `SessionRegistry.replace` asks the
 public `ChatWidget:ensure_fallback_window` for it, and the target's `show`
-reclaims it inside the `nvim_win_call`, so the tab stays widget-only. Regressions:
+reclaims it inside the `nvim_win_call`, so the tab stays widget-only. The
+source's windows close inside that call, and `nvim_win_call` then returns to a
+window that depends on their close order, which can be the source's hidden chat
+float. After a placement, `commit_replacement` moves focus to the target's
+input, else its chat, when the current window is unusable, floating, hidden or
+unfocusable; a normal window keeps focus. Regressions:
 `chat_widget.test.lua::"leaves an empty marked scratch when a stacked widget hides"`,
 `::"reclaims the untouched scratch when a stacked widget shows"`,
 `::"keeps a scratch the user typed into"`,
@@ -167,7 +172,9 @@ reclaims it inside the `nvim_win_call`, so the tab stays widget-only. Regression
 `::"leaves a marked window alone on rerender"`,
 `::"leaves an empty marked scratch when a stacked widget is destroyed from another tab"`,
 `::"keeps the oldfile fallback for a side layout"` and
-`tests/integration/test_multi_session.lua::"keeps a widget-only stacked tab widget-only across a switch"`.
+`tests/integration/test_multi_session.lua::"keeps a widget-only stacked tab widget-only across a switch"`,
+`session_registry.test.lua::"focuses the target's input after a replacement from the source's input, retain_source true"`
+and `::"keeps focus in the editor window for a side layout"`.
 
 **Identity is published.** Every hook payload carries `session_key`, stable for
 life. `tab_page_id` survives as placement only, nil for a background session;

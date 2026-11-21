@@ -2068,6 +2068,8 @@ describe("agentic.SessionRegistry one-shot lifecycle", function()
         local baseline_bufs
         --- @type integer
         local tabpage
+        --- @type TestStub|nil
+        local close_stub
 
         --- @param tab integer
         --- @return integer[]
@@ -2132,6 +2134,10 @@ describe("agentic.SessionRegistry one-shot lifecycle", function()
         end)
 
         after_each(function()
+            if close_stub then
+                close_stub:revert()
+                close_stub = nil
+            end
             for _, session in ipairs(sessions) do
                 if not session.destroyed then
                     pcall(function()
@@ -2213,6 +2219,86 @@ describe("agentic.SessionRegistry one-shot lifecycle", function()
             assert.is_nil(SessionRegistry.get(40))
             assert.equal(tabpage, target.widget:get_visible_tab_id())
             assert.same({ quickfix }, non_widget_wins(tabpage))
+        end)
+
+        --- `WidgetLayout.close` walks `win_nrs` with `pairs`, whose order
+        --- LuaJIT randomizes per process, and the window `nvim_win_call`
+        --- returns to depends on that order.
+        --- @param last_name string
+        local function close_in_order_with_last(last_name)
+            local BufHelpers = require("agentic.utils.buf_helpers")
+            local WidgetLayout = require("agentic.ui.widget_layout")
+            close_stub = spy.stub(WidgetLayout, "close")
+            close_stub:invokes(function(win_nrs)
+                local names = vim.tbl_keys(win_nrs)
+                table.sort(names, function(left, right)
+                    if (left == last_name) ~= (right == last_name) then
+                        return right == last_name
+                    end
+                    return left < right
+                end)
+                for _, name in ipairs(names) do
+                    local winid = win_nrs[name]
+                    win_nrs[name] = nil
+                    if BufHelpers.is_win_usable(winid) then
+                        vim.api.nvim_win_close(winid, true)
+                    end
+                end
+            end)
+        end
+
+        for _, retain_source in ipairs({ false, true }) do
+            it(
+                "focuses the target's input after a replacement from the source's input, retain_source "
+                    .. tostring(retain_source),
+                function()
+                    local source = visible_source()
+                    vim.api.nvim_set_current_win(source.widget.win_nrs.input)
+                    close_in_order_with_last("input")
+
+                    local target = SessionRegistry.replace(
+                        source,
+                        "claude-acp",
+                        { kind = "new" },
+                        {
+                            agent = new_agent("Injected"),
+                            retain_source = retain_source,
+                        }
+                    )
+                    target.ready_callback(target)
+
+                    local current = vim.api.nvim_get_current_win()
+                    assert.equal(target.widget.win_nrs.input, current)
+                    assert.equal(
+                        "",
+                        vim.api.nvim_win_get_config(current).relative
+                    )
+                    assert.equal(tabpage, vim.api.nvim_get_current_tabpage())
+                end
+            )
+        end
+
+        it("keeps focus in the editor window for a side layout", function()
+            Config.windows.position = "right"
+            local source = widget_session("source")
+            source.session_key = 40
+            source.widget.session_key = 40
+            SessionRegistry.sessions[40] = source
+            source.widget:show({ focus_prompt = false })
+            local editor = non_widget_wins(tabpage)[1]
+            vim.api.nvim_set_current_win(editor)
+
+            local target = SessionRegistry.replace(
+                source,
+                "claude-acp",
+                { kind = "new" },
+                { agent = new_agent("Injected") }
+            )
+            target.ready_callback(target)
+
+            assert.is_nil(SessionRegistry.get(40))
+            assert.equal(tabpage, target.widget:get_visible_tab_id())
+            assert.equal(editor, vim.api.nvim_get_current_win())
         end)
 
         it("still rolls back a side layout", function()
